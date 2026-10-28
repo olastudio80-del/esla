@@ -1,8 +1,21 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
+import { sendPush } from './fcm.ts';
+import {
+  alarmNotice,
+  label,
+  missedNotice,
+  pushBody,
+  silenceNotice,
+  telegramText,
+  testNotice,
+  type Lang,
+  type Notice,
+} from './texts.ts';
+
 /**
- * Отправка тревог близким в телеграм.
+ * Сообщения близким: телеграм и push — из одного места.
  *
  * Три повода. Тревожный симптом: приложение само зовёт эту функцию сразу
  * после того, как человек его отметил. Неотмеченный приём лекарства и
@@ -11,15 +24,21 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
  * открывать приложение, а молчащий телефон по определению ничего о себе
  * не сообщит.
  *
+ * ДВА КАНАЛА, ОДНО РЕШЕНИЕ. Push доходит только пока приложение
+ * установлено и его не задушила экономия батареи; телеграм этого не
+ * боится, но требует подписки. Поэтому событие уходит в оба, а решение
+ * «отправлять или нет» принимается один раз в базе: иначе второй канал
+ * получал бы отказ по задержке, которую поставил первый.
+ *
  * ЧТО УХОДИТ НАРУЖУ. Имя, симптом и названия лекарств. Свободный рассказ
  * человека («note») не отправляется никогда: это его слова о себе, и для
  * решения «ехать или позвонить» они не нужны — близкий прочитает их в
  * приложении.
  */
 
-const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '';
 
 /** Повторные тревоги в пределах окна не превращаются в поток сообщений. */
 const ALARM_COOLDOWN_MINUTES = 15;
@@ -41,14 +60,13 @@ const MISSED_GRACE_MINUTES = 120;
 const MISSED_WINDOW_MINUTES = 8 * 60;
 /** Не чаще раза в шесть часов: это сообщение, а не упрёк. */
 const MISSED_COOLDOWN_MINUTES = 6 * 60;
-/** Сколько букв списка лекарств влезает в сообщение. */
-const MEDICINES_LIMIT = 100;
 
-type Lang = 'uz' | 'ru';
+type Kind = 'alarm' | 'silence' | 'missed' | 'test';
 
 const service = () => createClient(SUPABASE_URL, SERVICE_KEY);
 
-async function send(chatId: number, text: string): Promise<boolean> {
+async function sendTelegram(chatId: number, text: string): Promise<boolean> {
+  if (!BOT_TOKEN) return false;
   const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -60,82 +78,53 @@ async function send(chatId: number, text: string): Promise<boolean> {
   return false;
 }
 
-function alarmText(name: string, symptoms: string[], lang: Lang): string {
-  const what = symptoms.filter((s) => s.trim()).join(', ');
-  if (lang === 'ru') {
-    return [
-      '🚨 esla',
-      what ? `${name}: ${what}.` : `${name} нужно проверить.`,
-      'Пожалуйста, свяжитесь с ним.',
-    ].join('\n');
-  }
-  return [
-    '🚨 esla',
-    what ? `${name}: ${what}.` : `${name} bilan tekshirish kerak.`,
-    'Iltimos, u bilan bogʻlaning.',
-  ].join('\n');
-}
-
-/** Про молчание пишем на двух языках: приложение в этом не участвует. */
-function silenceText(name: string, hours: number): string {
-  return [
-    '⏳ esla',
-    `${name}: telefon ${hours} soatdan beri javob bermayapti.`,
-    'Iltimos, qoʻngʻiroq qiling.',
-    '',
-    `${name}: телефон не выходит на связь ${hours} часов.`,
-    'Пожалуйста, позвоните.',
-  ].join('\n');
-}
-
 /**
- * Неотмеченный приём.
+ * Разослать по всем каналам. Возвращает, сколько сообщений дошло.
  *
- * Формулировка важнее механики: мы знаем только то, что кнопку не нажали,
- * и сообщение обязано говорить именно это. «Не принял лекарство» было бы
- * обвинением, которого мы проверить не можем, и оно же било бы по
- * отношениям в семье, ради которых всё это и делается.
+ * Отказ по задержке — это не ошибка: он означает, что близких уже
+ * предупредили об этом же совсем недавно.
  */
-function missedText(name: string, medicines: string): string {
-  const what =
-    medicines.length > MEDICINES_LIMIT ? `${medicines.slice(0, MEDICINES_LIMIT)}…` : medicines;
-  return [
-    '💊 esla',
-    `${name}: ${what} qabulini belgilamadi.`,
-    'Dorini ichgan boʻlishi ham mumkin — iltimos, qoʻngʻiroq qilib soʻrang.',
-    '',
-    `${name}: не отметил приём — ${what}.`,
-    'Возможно, лекарство принято, а кнопка не нажата — позвоните и спросите.',
-  ].join('\n');
-}
-
-function label(name: string | null): string {
-  return name && name.trim() ? name.trim() : 'Yaqiningiz / ваш близкий';
-}
-
-/** Разослать всем подписчикам пациента. Возвращает число доставленных. */
 async function fanOut(
   patientId: string,
-  kind: 'alarm' | 'silence' | 'missed' | 'test',
+  kind: Kind,
   cooldownMinutes: number,
-  text: string,
+  notice: Notice,
 ): Promise<number> {
   const db = service();
-  // Список получателей и отметка об отправке — одной операцией в базе:
-  // иначе две одновременные тревоги отправили бы по сообщению каждая.
-  const { data, error } = await db.rpc('esla_telegram_claim_send', {
+
+  const { data: claimed, error: claimError } = await db.rpc('esla_notify_claim', {
     p_patient: patientId,
     p_kind: kind,
     p_cooldown_minutes: cooldownMinutes,
   });
-  if (error) {
-    console.error('[esla] получатели не получены', error.message);
+  if (claimError) {
+    console.error('[esla] отметка об отправке не поставлена', claimError.message);
     return 0;
   }
+  if (claimed !== true) return 0;
 
-  const chats = (data ?? []).map((row: { chat_id: number }) => row.chat_id);
-  const results = await Promise.all(chats.map((chat: number) => send(chat, text)));
-  return results.filter(Boolean).length;
+  const [chats, devices] = await Promise.all([
+    db.rpc('esla_telegram_chats', { p_patient: patientId }),
+    db.rpc('esla_relative_push_tokens', { p_patient: patientId }),
+  ]);
+
+  if (chats.error) console.error('[esla] переписки не получены', chats.error.message);
+  if (devices.error) console.error('[esla] устройства не получены', devices.error.message);
+
+  const text = telegramText(notice);
+  const telegramSent = await Promise.all(
+    ((chats.data ?? []) as { chat: number }[]).map((row) => sendTelegram(row.chat, text)),
+  );
+
+  const pushSent = await sendPush(
+    ((devices.data ?? []) as { device_token: string }[]).map((row) => row.device_token),
+    { title: notice.title, body: pushBody(notice), kind },
+    async (token) => {
+      await db.rpc('esla_forget_push_device', { p_token: token });
+    },
+  );
+
+  return telegramSent.filter(Boolean).length + pushSent;
 }
 
 /** Тревога от приложения. Пациент — тот, чей токен в запросе. */
@@ -170,53 +159,51 @@ async function handleAlarm(req: Request): Promise<Response> {
       : [];
 
   const lang: Lang = body.lang === 'ru' ? 'ru' : 'uz';
-  const kind = body.test === true ? 'test' : 'alarm';
-  const text =
-    kind === 'test'
-      ? [
-          '✅ esla',
-          lang === 'ru'
-            ? 'Проверка связи. Так будет выглядеть предупреждение.'
-            : 'Aloqa tekshiruvi. Ogohlantirish shunday koʻrinadi.',
-        ].join('\n')
-      : alarmText(label(profile?.display_name ?? null), symptoms, lang);
+  const kind: Kind = body.test === true ? 'test' : 'alarm';
+  const notice =
+    kind === 'test' ? testNotice(lang) : alarmNotice(label(profile?.display_name ?? null), symptoms, lang);
 
-  const sent = await fanOut(patientId, kind, kind === 'test' ? 0 : ALARM_COOLDOWN_MINUTES, text);
+  const sent = await fanOut(patientId, kind, kind === 'test' ? 0 : ALARM_COOLDOWN_MINUTES, notice);
   return json({ sent });
 }
 
 /**
- * Обход молчащих телефонов. Вызывается расписанием внутри базы.
+ * Обход молчащих телефонов и неотмеченных доз. Вызывается расписанием
+ * внутри базы.
  *
  * Авторизации нет намеренно. Посторонний вызов не даёт ничего: функция сама
- * выбирает, кто давно молчит, отправляет не чаще раза в полсуток на
+ * выбирает, о ком писать, отправляет не чаще раза в оговорённое время на
  * человека и в ответе не раскрывает ни имён, ни сколько их. Единственное,
  * чего добился бы злоумышленник, — отправки, которая и так случилась бы
  * через несколько минут. Любой секрет здесь пришлось бы где-то хранить, и
  * место хранения стало бы уязвимее самой функции.
  */
 async function handleSweep(): Promise<Response> {
+  const silence = await sweepSilence();
+  const missed = await sweepMissed();
+  return json({ sent: silence + missed, silence, missed });
+}
+
+async function sweepSilence(): Promise<number> {
   const db = service();
   const { data, error } = await db.rpc('esla_telegram_silent_patients', {
     p_after_hours: SILENCE_AFTER_HOURS,
   });
   if (error) {
     console.error('[esla] молчащие не получены', error.message);
-    return json({ error: 'failed' }, 500);
+    return 0;
   }
 
-  let silence = 0;
+  let sent = 0;
   for (const row of (data ?? []) as { patient_id: string; patient_name: string | null }[]) {
-    silence += await fanOut(
+    sent += await fanOut(
       row.patient_id,
       'silence',
       SILENCE_COOLDOWN_MINUTES,
-      silenceText(label(row.patient_name), SILENCE_AFTER_HOURS),
+      silenceNotice(label(row.patient_name), SILENCE_AFTER_HOURS),
     );
   }
-
-  const missed = await sweepMissed();
-  return json({ sent: silence + missed, silence, missed });
+  return sent;
 }
 
 /**
@@ -248,7 +235,7 @@ async function sweepMissed(): Promise<number> {
       row.patient_id,
       'missed',
       MISSED_COOLDOWN_MINUTES,
-      missedText(label(row.patient_name), row.medicines),
+      missedNotice(label(row.patient_name), row.medicines),
     );
   }
   return sent;
@@ -262,7 +249,6 @@ function json(body: unknown, status = 200): Response {
 }
 
 Deno.serve(async (req: Request) => {
-  if (!BOT_TOKEN) return json({ error: 'no-bot-token' }, 503);
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
 
   const url = new URL(req.url);

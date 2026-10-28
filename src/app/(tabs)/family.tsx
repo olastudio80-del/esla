@@ -13,6 +13,7 @@ import { Txt } from '@/components/ui/Txt';
 import { symptomById } from '@/data/symptoms';
 import { getAllPhones, setPhone } from '@/features/cloud/contacts';
 import { useFamily, type PatientView } from '@/hooks/useFamily';
+import { usePush } from '@/hooks/usePush';
 import { useT } from '@/i18n';
 import { localISO, minutesBetween, timeOf } from '@/lib/date';
 import { formatCount, useAgo, useDuration } from '@/lib/format';
@@ -32,6 +33,9 @@ import { color, radius, semantic, space } from '@/theme/tokens';
 export default function FamilyScreen() {
   const { t } = useT();
   const family = useFamily();
+  // Этот телефон — получатель тревог о родителях, поэтому регистрируем его
+  // здесь: экран «Holat» открывает именно тот, кто следит.
+  const push = usePush();
   const [adding, setAdding] = useState(false);
   const [code, setCode] = useState('');
   const [codeError, setCodeError] = useState(false);
@@ -53,6 +57,25 @@ export default function FamilyScreen() {
         </Txt>
         <Pill label={`+ ${t('addRelative')}`} onPress={() => setAdding((v) => !v)} tint={color.card} />
       </View>
+
+      {/* Показываем только то, что человек может исправить: запрет
+          уведомлений. Работающий push молчит — на экране про здоровье
+          родителей нет места отчётам об исправности. */}
+      {push.state === 'denied' ? (
+        <Card tint={color.blushSoft}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
+            <Icon name="bell" size={22} color={color.rose} />
+            <Txt weight="semibold" style={{ flex: 1 }}>
+              {t('pushDenied')}
+            </Txt>
+          </View>
+          <Txt variant="caption" color={color.inkSoft} style={{ marginTop: space(2) }}>
+            {t('pushDeniedHint')}
+          </Txt>
+          <Gap size={3} />
+          <Button label={t('pushRetry')} variant="soft" onPress={push.retry} />
+        </Card>
+      ) : null}
 
       {family.views.length > 0 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>

@@ -1,3 +1,4 @@
+import * as Notifications from 'expo-notifications';
 import { Stack, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -48,6 +49,19 @@ function AppShell() {
     // до первого экрана, а не после.
     if (ready && !prefs.onboarded) router.replace('/welcome');
   }, [ready, prefs.onboarded]);
+
+  useEffect(() => {
+    // Нажатие на уведомление должно открывать то, из-за чего оно пришло.
+    // Тревога о близком — экран состояния; напоминание о лекарстве само
+    // открывает главный экран, и трогать его не нужно.
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const kind = response.notification.request.content.data?.kind;
+      if (kind === 'alarm' || kind === 'silence' || kind === 'missed') {
+        router.navigate('/family');
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   if (!ready) return <View style={{ flex: 1, backgroundColor: color.paper }} />;
 

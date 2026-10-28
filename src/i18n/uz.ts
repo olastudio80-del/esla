@@ -356,6 +356,15 @@ export const uz = {
   telegramAlarmSent: 'Yaqinlar ogohlantirildi: {count}',
   telegramAlarmNobody: 'Yaqinlar ogohlantirilmadi: hech kim obuna emas',
 
+  pushSection: 'Bu telefondagi ogohlantirishlar',
+  pushReady: 'Yaqiningiz haqidagi ogohlantirishlar bu telefonga keladi',
+  pushDenied: 'Ogohlantirishlar taqiqlangan',
+  pushDeniedHint:
+    'Telefon sozlamalarida ruxsat bering, aks holda ogohlantirish faqat telegramga keladi.',
+  pushUnavailable: 'Bu telefon push-ogohlantirishni qoʻllamaydi',
+  pushUnavailableHint: 'Ogohlantirish telegramga keladi — eski telefonlarda u ishonchliroq.',
+  pushRetry: 'Qayta urinish',
+
   about: 'Ilova haqida',
   aboutText:
     '«esla» — oʻzbek tilidagi «eslamoq» feʼlidan: yodda tut, unutma. Yaqinlarni esla. Dorilarni esla.',

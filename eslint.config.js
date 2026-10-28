@@ -10,6 +10,14 @@ module.exports = [
     ignores: ['dist/*', 'android/*', 'ios/*', '.expo/*', 'supabase/functions/*'],
   },
   {
+    // app.config.js и eslint.config.js выполняет Node во время сборки, а не
+    // телефон: там свои глобальные объекты вроде __dirname и require.
+    files: ['*.config.js'],
+    languageOptions: {
+      globals: { __dirname: 'readonly', module: 'writable', require: 'readonly' },
+    },
+  },
+  {
     // Плагин TypeScript подключён конфигом Expo только для ts/tsx,
     // поэтому правило объявляем для тех же файлов.
     files: ['**/*.ts', '**/*.tsx'],

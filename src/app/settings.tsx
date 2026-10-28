@@ -14,6 +14,7 @@ import { cloudConfigured } from '@/features/cloud/client';
 import { refreshInviteCode } from '@/features/cloud/sync';
 import { getPermissionGranted, rescheduleAll, requestPermission } from '@/features/notifications';
 import { useHealth } from '@/hooks/useHealth';
+import { usePush } from '@/hooks/usePush';
 import { useT } from '@/i18n';
 import { usePrefs, type Lang } from '@/store/prefs';
 import { useMotion } from '@/theme/motion';
@@ -29,6 +30,7 @@ export default function SettingsScreen() {
   const { prefs, set } = usePrefs();
   const bracelet = useHealth();
   const motion = useMotion();
+  const push = usePush();
   const [notifications, setNotifications] = useState<boolean | null>(null);
   const [invite, setInvite] = useState<{ code: string; expiresAt: string } | null>(null);
   /**
@@ -274,6 +276,44 @@ export default function SettingsScreen() {
           ) : null}
         </Card>
       </View>
+
+      {/* Push нужен только тому, кто получает тревоги о близком. */}
+      {prefs.role === 'relative' && cloudConfigured ? (
+        <View style={{ gap: space(2) }}>
+          <Caption>{t('pushSection')}</Caption>
+          <Card tint={push.state === 'ready' ? color.sageSoft : color.card}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
+              <Icon
+                name="bell"
+                size={22}
+                color={push.state === 'ready' ? color.sageDeep : color.inkSoft}
+              />
+              <Txt
+                weight="semibold"
+                color={push.state === 'ready' ? color.sageDeep : color.ink}
+                style={{ flex: 1 }}
+              >
+                {push.state === 'ready'
+                  ? t('pushReady')
+                  : push.state === 'denied'
+                    ? t('pushDenied')
+                    : t('pushUnavailable')}
+              </Txt>
+            </View>
+            {push.state === 'denied' || push.state === 'unavailable' ? (
+              <Txt variant="caption" color={color.inkSoft} style={{ marginTop: space(2) }}>
+                {push.state === 'denied' ? t('pushDeniedHint') : t('pushUnavailableHint')}
+              </Txt>
+            ) : null}
+            {push.state === 'denied' ? (
+              <>
+                <Gap size={3} />
+                <Button label={t('pushRetry')} variant="soft" onPress={push.retry} />
+              </>
+            ) : null}
+          </Card>
+        </View>
+      ) : null}
 
       <View style={{ gap: space(2) }}>
         <Caption>{t('braceletTitle')}</Caption>
