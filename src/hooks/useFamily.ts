@@ -24,7 +24,44 @@ export type PatientView = {
   doses: PatientDose[];
   vitals: PatientVitals | null;
   alarms: PatientAlarm[];
+  /**
+   * Всё, что зависит от текущего времени, считается здесь, при загрузке,
+   * а не в разметке: вычисление времени во время отрисовки непредсказуемо
+   * при повторном проходе и запрещено правилами React.
+   */
+  todayDoses: PatientDose[];
+  takenToday: number;
+  missedToday: PatientDose[];
+  /** Сутки без единой отправки — повод позвонить, а не ждать. */
+  silent: boolean;
+  unseenAlarm: PatientAlarm | null;
 };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Собирает производные данные одного родителя на момент загрузки. */
+function buildView(
+  patient: Patient,
+  doses: PatientDose[],
+  vitals: PatientVitals | null,
+  alarms: PatientAlarm[],
+  now: Date,
+): PatientView {
+  const today = dateKey(now);
+  const todayDoses = doses.filter((dose) => dose.plannedAt.slice(0, 10) === today);
+  return {
+    patient,
+    doses,
+    vitals,
+    alarms,
+    todayDoses,
+    takenToday: todayDoses.filter((dose) => dose.status === 'taken').length,
+    missedToday: todayDoses.filter((dose) => dose.status === 'missed'),
+    silent:
+      !patient.lastSeenAt || now.getTime() - new Date(patient.lastSeenAt).getTime() > DAY_MS,
+    unseenAlarm: alarms.find((alarm) => alarm.seenAt === null) ?? null,
+  };
+}
 
 export type Invite = { code: string; expiresAt: string };
 
@@ -57,13 +94,17 @@ export function useFamily() {
       const patients = await listPatients();
       // Неделя назад: достаточно, чтобы увидеть пропуски, и не грузит лишнего.
       const since = parseLocalISO(`${addDays(dateKey(), -7)}T00:00:00`).toISOString();
+      const now = new Date();
       const loaded = await Promise.all(
-        patients.map(async (patient) => ({
-          patient,
-          doses: await fetchPatientDoses(patient.id, since),
-          vitals: await fetchPatientVitals(patient.id),
-          alarms: await fetchPatientAlarms(patient.id),
-        })),
+        patients.map(async (patient) =>
+          buildView(
+            patient,
+            await fetchPatientDoses(patient.id, since),
+            await fetchPatientVitals(patient.id),
+            await fetchPatientAlarms(patient.id),
+            now,
+          ),
+        ),
       );
       setViews(loaded);
     }

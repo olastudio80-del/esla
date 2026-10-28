@@ -216,6 +216,9 @@ export const ru: Dict = {
   missedToday: 'Пропущено лекарств: {n}',
   takenToday: 'Принято {taken} из {total}',
 
+  lastSeen: 'Последняя связь: {ago}',
+  neverSeen: 'Ещё не выходил на связь',
+
   // Браслет и Health Connect
   braceletTitle: 'Фитнес-браслет',
   braceletSubtitle: 'Пульс, сон и активность',

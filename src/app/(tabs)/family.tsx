@@ -231,11 +231,8 @@ function PatientCard({
   const [draft, setDraft] = useState(phone ?? '');
 
   const name = view.patient.name ?? t('roleRelative');
-  const today = new Date().toISOString().slice(0, 10);
-  const todayDoses = view.doses.filter((dose) => dose.plannedAt.slice(0, 10) === today);
-  const taken = todayDoses.filter((dose) => dose.status === 'taken').length;
-  const missed = todayDoses.filter((dose) => dose.status === 'missed');
-  const unseenAlarm = view.alarms.find((alarm) => alarm.seenAt === null);
+  // Всё, что зависит от текущего времени, посчитано при загрузке данных.
+  const { silent, todayDoses, takenToday: taken, missedToday: missed, unseenAlarm } = view;
 
   return (
     <Card>
@@ -252,9 +249,18 @@ function PatientCard({
         >
           <Icon name="users" size={22} color={color.ink} />
         </View>
-        <Txt variant="bodyLarge" weight="bold" style={{ flex: 1 }}>
-          {name}
-        </Txt>
+        <View style={{ flex: 1 }}>
+          <Txt variant="bodyLarge" weight="bold">
+            {name}
+          </Txt>
+          {/* Когда телефон родителя последний раз выходил на связь.
+              Молчание — сигнал сам по себе, поэтому стоит рядом с именем. */}
+          <Txt variant="caption" color={silent ? color.roseText : color.inkSoft}>
+            {view.patient.lastSeenAt
+              ? t('lastSeen', { ago: ago(toLocal(view.patient.lastSeenAt)) })
+              : t('neverSeen')}
+          </Txt>
+        </View>
       </View>
 
       {unseenAlarm ? (

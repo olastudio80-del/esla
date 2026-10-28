@@ -215,6 +215,9 @@ export const uz = {
   missedToday: '{n} ta dori oʻtkazib yuborildi',
   takenToday: '{taken} / {total} ichildi',
 
+  lastSeen: 'Oxirgi aloqa: {ago}',
+  neverSeen: 'Hali aloqaga chiqmadi',
+
   // Браслет и Health Connect
   braceletTitle: 'Fitnes-bilaguzuk',
   braceletSubtitle: 'Yurak urishi, uyqu va faollik',

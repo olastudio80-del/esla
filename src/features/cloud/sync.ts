@@ -23,6 +23,12 @@ export type Patient = {
   id: string;
   name: string | null;
   relation: string | null;
+  /**
+   * Когда телефон родителя последний раз выходил на связь.
+   * Долгое молчание — первый сигнал в лестнице реагирования: ребёнок
+   * видит его раньше, чем что-либо успеет случиться.
+   */
+  lastSeenAt: string | null;
 };
 
 export type PatientDose = {
@@ -124,6 +130,8 @@ export async function pushPatientState(vitals: HealthSnapshot | null): Promise<v
     await pushDoses(userId);
     await pushAlarms(userId);
     if (vitals) await pushVitals(userId, vitals);
+    // Отметка «был на связи» — даже если отправлять было нечего.
+    await supabase.rpc('touch_last_seen');
   } catch (error) {
     console.warn('[esla] не удалось отправить состояние', error);
   }
@@ -200,7 +208,7 @@ export async function listPatients(): Promise<Patient[]> {
 
   const { data, error } = await supabase
     .from('links')
-    .select('relation, patient:patient_id (id, display_name)')
+    .select('relation, patient:patient_id (id, display_name, last_seen_at)')
     .eq('relative_id', userId);
 
   if (error) {
@@ -208,13 +216,17 @@ export async function listPatients(): Promise<Patient[]> {
     return [];
   }
 
-  type Row = { relation: string | null; patient: { id: string; display_name: string | null } | null };
+  type Row = {
+    relation: string | null;
+    patient: { id: string; display_name: string | null; last_seen_at: string | null } | null;
+  };
   return (data as unknown as Row[])
     .filter((row) => row.patient !== null)
     .map((row) => ({
       id: row.patient!.id,
       name: row.patient!.display_name,
       relation: row.relation,
+      lastSeenAt: row.patient!.last_seen_at,
     }));
 }
 
