@@ -12,11 +12,17 @@ export function Screen({
   children,
   scroll = true,
   footer,
+  background,
   tint = color.paper,
 }: PropsWithChildren<{
   scroll?: boolean;
   /** Закреплённый низ: главная кнопка не должна уезжать за прокрутку. */
   footer?: ReactNode;
+  /**
+   * Слой под содержимым: живые формы. Лежит ниже прокрутки и не принимает
+   * нажатия, поэтому ничего не перехватывает у кнопок.
+   */
+  background?: ReactNode;
   tint?: string;
 }>) {
   const insets = useSafeAreaInsets();
@@ -27,6 +33,7 @@ export function Screen({
 
   return (
     <View style={{ flex: 1, backgroundColor: tint }}>
+      {background}
       {scroll ? (
         <ScrollView
           style={{ flex: 1 }}

@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
+import { ECGLine } from '@/components/motion/ECGLine';
 import { Button, Gap, IconButton, Pill } from '@/components/ui/Button';
 import { Caption, Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
@@ -14,7 +15,8 @@ import { getPermissionGranted, rescheduleAll, requestPermission } from '@/featur
 import { useHealth } from '@/hooks/useHealth';
 import { useT } from '@/i18n';
 import { usePrefs, type Lang } from '@/store/prefs';
-import { color, space, type TextSize } from '@/theme/tokens';
+import { useMotion } from '@/theme/motion';
+import { color, space, type MotionLevel, type TextSize } from '@/theme/tokens';
 
 const LANGS: { value: Lang; label: string }[] = [
   { value: 'uz', label: "O'zbekcha" },
@@ -25,6 +27,7 @@ export default function SettingsScreen() {
   const { t } = useT();
   const { prefs, set } = usePrefs();
   const bracelet = useHealth();
+  const motion = useMotion();
   const [notifications, setNotifications] = useState<boolean | null>(null);
   const [invite, setInvite] = useState<{ code: string; expiresAt: string } | null>(null);
   /**
@@ -50,6 +53,12 @@ export default function SettingsScreen() {
     { value: 'large', label: t('textSizeLarge') },
     { value: 'huge', label: t('textSizeHuge') },
     { value: 'max', label: t('textSizeMax') },
+  ];
+
+  const levels: { value: MotionLevel; label: string }[] = [
+    { value: 'full', label: t('motionFull') },
+    { value: 'reduced', label: t('motionReduced') },
+    { value: 'off', label: t('motionOff') },
   ];
 
   return (
@@ -162,6 +171,50 @@ export default function SettingsScreen() {
           />
         </View>
       </View>
+
+      <View style={{ gap: space(2) }}>
+        <Caption>{t('motion')}</Caption>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space(2) }}>
+          {levels.map((item) => (
+            <Pill
+              key={item.value}
+              label={item.label}
+              selected={prefs.motion === item.value}
+              onPress={() => set('motion', item.value)}
+              tint={color.peachSoft}
+            />
+          ))}
+        </View>
+        <Txt variant="caption" color={color.inkSoft}>
+          {t('motionHint')}
+        </Txt>
+        {/* Если движение урезал сам телефон, человек должен понимать, почему
+            выбранное «полное» не действует. */}
+        {motion.level !== prefs.motion ? (
+          <Txt variant="caption" color={color.inkSoft}>
+            {t('motionSystemHint')}
+          </Txt>
+        ) : null}
+      </View>
+
+      {/*
+        Образец. Размер букв, их толщину и движение нельзя выбрать по
+        названию ступени — их видно только на живом примере. Поэтому он
+        стоит сразу под переключателями: человек меняет настройку и тут же
+        видит карточку лекарства такой, какой она будет на главном экране.
+      */}
+      <Card raised>
+        <Caption>{t('appearancePreview')}</Caption>
+        <Gap size={3} />
+        <Txt variant="title" weight="display">
+          Enalapril
+        </Txt>
+        <Txt variant="body" color={color.inkSoft} style={{ marginTop: space(1) }}>
+          08:00 · {t('afterMeal')}
+        </Txt>
+        <Gap size={2} />
+        <ECGLine height={40} />
+      </Card>
 
       <View style={{ gap: space(3) }}>
         <Caption>{t('profile')}</Caption>

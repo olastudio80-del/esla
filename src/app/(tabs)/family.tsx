@@ -2,6 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, View } from 'react-native';
 
+import { Appear } from '@/components/motion/Appear';
 import { ECGLine } from '@/components/motion/ECGLine';
 import { Button, Gap, Pill } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -115,28 +116,30 @@ export default function FamilyScreen() {
       ) : null}
 
       {view ? (
-        <PatientStatus
-          view={view}
-          phone={phones[view.patient.id] ?? null}
-          onSavePhone={async (value) => {
-            await setPhone(view.patient.id, value);
-            setPhones(await getAllPhones());
-          }}
-          onRemove={() =>
-            Alert.alert(
-              t('unlinkConfirm', { name: view.patient.name ?? t('roleRelative') }),
-              undefined,
-              [
-                { text: t('cancel'), style: 'cancel' },
-                {
-                  text: t('unlink'),
-                  style: 'destructive',
-                  onPress: () => void family.removePatient(view.patient.id),
-                },
-              ],
-            )
-          }
-        />
+        <Appear index={1}>
+          <PatientStatus
+            view={view}
+            phone={phones[view.patient.id] ?? null}
+            onSavePhone={async (value) => {
+              await setPhone(view.patient.id, value);
+              setPhones(await getAllPhones());
+            }}
+            onRemove={() =>
+              Alert.alert(
+                t('unlinkConfirm', { name: view.patient.name ?? t('roleRelative') }),
+                undefined,
+                [
+                  { text: t('cancel'), style: 'cancel' },
+                  {
+                    text: t('unlink'),
+                    style: 'destructive',
+                    onPress: () => void family.removePatient(view.patient.id),
+                  },
+                ],
+              )
+            }
+          />
+        </Appear>
       ) : null}
     </Screen>
   );

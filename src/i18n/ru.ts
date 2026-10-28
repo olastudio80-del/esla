@@ -310,6 +310,15 @@ export const ru: Dict = {
   boldText: 'Толщина букв',
   boldTextOff: 'Обычная',
   boldTextOn: 'Жирная',
+  motion: 'Движение в интерфейсе',
+  motionFull: 'Полное',
+  motionReduced: 'Меньше',
+  motionOff: 'Выключено',
+  motionHint:
+    'Живые формы и плавные переходы. Уменьшите или выключите, если движение отвлекает или телефон подтормаживает.',
+  motionSystemHint:
+    'В телефоне включено «Уменьшить движение» — приложение следует настройке телефона.',
+  appearancePreview: 'Как это будет выглядеть',
   notifications: 'Напоминания',
   notificationsOn: 'Напоминания включены',
   notificationsOff: 'Напоминания выключены',

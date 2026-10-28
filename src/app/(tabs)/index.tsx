@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { LogoMark } from '@/components/Logo';
+import { Appear } from '@/components/motion/Appear';
 import { Button, Gap } from '@/components/ui/Button';
 import { Caption, Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
@@ -27,29 +28,45 @@ export default function HomeScreen() {
     <Screen>
       <TopRow />
 
-      <View style={{ gap: space(1) }}>
-        {/* Запятая только когда за приветствием следует имя. */}
-        <Txt variant="bodyLarge" color={color.inkSoft}>
-          {prefs.patientName ? `${t('greeting')},` : t('greeting')}
-        </Txt>
-        {prefs.patientName ? (
-          <Txt variant="headline" weight="displayExtra">
-            {prefs.patientName}
+      <Appear>
+        <View style={{ gap: space(1) }}>
+          {/* Запятая только когда за приветствием следует имя. */}
+          <Txt variant="bodyLarge" color={color.inkSoft}>
+            {prefs.patientName ? `${t('greeting')},` : t('greeting')}
           </Txt>
-        ) : null}
-      </View>
+          {prefs.patientName ? (
+            <Txt variant="headline" weight="displayExtra">
+              {prefs.patientName}
+            </Txt>
+          ) : null}
+        </View>
+      </Appear>
 
-      {loading ? null : current ? (
-        <CurrentDoseCard dose={current} onTaken={() => act(current, 'taken')} onSnooze={() => snooze(current)} />
-      ) : progress.total > 0 ? (
-        <AllDoneCard />
-      ) : (
-        <NoMedicinesCard />
+      {loading ? null : (
+        <Appear index={1}>
+          {current ? (
+            <CurrentDoseCard
+              dose={current}
+              onTaken={() => act(current, 'taken')}
+              onSnooze={() => snooze(current)}
+            />
+          ) : progress.total > 0 ? (
+            <AllDoneCard />
+          ) : (
+            <NoMedicinesCard />
+          )}
+        </Appear>
       )}
 
-      {today.length > 0 ? <TodayList doses={today} onPressDose={(d) => act(d, 'taken')} /> : null}
+      {today.length > 0 ? (
+        <Appear index={2}>
+          <TodayList doses={today} onPressDose={(d) => act(d, 'taken')} />
+        </Appear>
+      ) : null}
 
-      <AssistantRow />
+      <Appear index={3}>
+        <AssistantRow />
+      </Appear>
     </Screen>
   );
 }

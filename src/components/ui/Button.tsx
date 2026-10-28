@@ -1,10 +1,22 @@
 import * as Haptics from 'expo-haptics';
 import { ActivityIndicator, Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { Icon, type IconName } from './Icon';
 import { Txt } from './Txt';
 
+import { useMotion } from '@/theme/motion';
 import { MIN_TOUCH, color, radius, space } from '@/theme/tokens';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/**
+ * Насколько кнопка проседает под пальцем.
+ *
+ * Три процента: нажатие ощущается, но кнопка не уезжает из-под пальца —
+ * на главной кнопке «Ichdim» это важнее, чем выразительность.
+ */
+const SQUEEZE = 0.03;
 
 type Variant = 'primary' | 'accent' | 'soft' | 'danger' | 'ghost';
 
@@ -48,9 +60,18 @@ export function Button({
 }: ButtonProps) {
   const s = STYLES[variant];
   const inactive = disabled || busy;
+  const { level } = useMotion();
+  const squeeze = level === 'off' ? 0 : SQUEEZE;
+  const press = useSharedValue(0);
+
+  // Притухание и просадка — одно движение: одно состояние, один стиль.
+  const animated = useAnimatedStyle(() => ({
+    opacity: inactive ? 0.5 : 1 - press.value * 0.15,
+    transform: [{ scale: 1 - press.value * squeeze }],
+  }));
 
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: inactive, busy }}
@@ -59,7 +80,13 @@ export function Button({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
         onPress();
       }}
-      style={({ pressed }) => [
+      onPressIn={() => {
+        press.value = withTiming(1, { duration: 90 });
+      }}
+      onPressOut={() => {
+        press.value = withTiming(0, { duration: 170 });
+      }}
+      style={[
         {
           minHeight: large ? 68 : MIN_TOUCH,
           paddingHorizontal: space(5),
@@ -71,9 +98,9 @@ export function Button({
           alignItems: 'center',
           justifyContent: 'center',
           gap: space(2),
-          opacity: inactive ? 0.5 : pressed ? 0.85 : 1,
         },
         style,
+        animated,
       ]}
     >
       {busy ? (
@@ -86,7 +113,7 @@ export function Button({
           </Txt>
         </>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

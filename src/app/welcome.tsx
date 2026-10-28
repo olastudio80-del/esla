@@ -3,6 +3,9 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { LogoMark } from '@/components/Logo';
+import { Appear } from '@/components/motion/Appear';
+import { Blobs } from '@/components/motion/Blobs';
+import { Heartbeat } from '@/components/motion/Heartbeat';
 import { Button, Gap } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
@@ -29,6 +32,7 @@ export default function WelcomeScreen() {
 
   return (
     <Screen
+      background={<Blobs opacity={0.6} />}
       footer={
         <Button
           label={t('welcomeStart')}
@@ -44,15 +48,19 @@ export default function WelcomeScreen() {
         />
       }
     >
-      <View style={{ alignItems: 'center', gap: space(3), marginTop: space(6) }}>
-        <LogoMark size={88} />
-        <Txt variant="headline" weight="logo" color={color.plum}>
-          esla
-        </Txt>
-        <Txt variant="body" color={color.inkSoft} align="center">
-          {t('appTagline')}
-        </Txt>
-      </View>
+      <Appear>
+        <View style={{ alignItems: 'center', gap: space(3), marginTop: space(6) }}>
+          <Heartbeat>
+            <LogoMark size={88} />
+          </Heartbeat>
+          <Txt variant="headline" weight="logo" color={color.plum}>
+            esla
+          </Txt>
+          <Txt variant="body" color={color.inkSoft} align="center">
+            {t('appTagline')}
+          </Txt>
+        </View>
+      </Appear>
 
       <Gap size={4} />
 
@@ -63,20 +71,24 @@ export default function WelcomeScreen() {
         {t('welcomeHint')}
       </Txt>
 
-      <RoleCard
-        icon="pill"
-        title={t('roleIAmPatient')}
-        selected={role === 'patient'}
-        onPress={() => setRole('patient')}
-        tint={color.blushSoft}
-      />
-      <RoleCard
-        icon="users"
-        title={t('roleIAmRelative')}
-        selected={role === 'relative'}
-        onPress={() => setRole('relative')}
-        tint={color.lilacSoft}
-      />
+      <Appear index={1}>
+        <RoleCard
+          icon="pill"
+          title={t('roleIAmPatient')}
+          selected={role === 'patient'}
+          onPress={() => setRole('patient')}
+          tint={color.blushSoft}
+        />
+      </Appear>
+      <Appear index={2}>
+        <RoleCard
+          icon="users"
+          title={t('roleIAmRelative')}
+          selected={role === 'relative'}
+          onPress={() => setRole('relative')}
+          tint={color.lilacSoft}
+        />
+      </Appear>
 
       {role === 'patient' ? (
         <View style={{ gap: space(2) }}>

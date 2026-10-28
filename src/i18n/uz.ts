@@ -309,6 +309,15 @@ export const uz = {
   boldText: 'Harflar qalinligi',
   boldTextOff: 'Oddiy',
   boldTextOn: 'Qalin',
+  motion: 'Interfeys harakati',
+  motionFull: 'Toʻliq',
+  motionReduced: 'Kamroq',
+  motionOff: 'Oʻchirilgan',
+  motionHint:
+    'Tirik shakllar va silliq oʻtishlar. Harakat chalgʻitsa yoki telefon sekinlashsa, kamaytiring yoki oʻchiring.',
+  motionSystemHint:
+    'Telefonda «Harakatni kamaytirish» yoqilgan — ilova telefon sozlamasiga boʻysunadi.',
+  appearancePreview: 'Qanday koʻrinadi',
   notifications: 'Eslatmalar',
   notificationsOn: 'Eslatmalar yoqilgan',
   notificationsOff: 'Eslatmalar oʻchirilgan',
