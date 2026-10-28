@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "393461465742",
+    "project_id": "esla-498c7",
+    "storage_bucket": "esla-498c7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:393461465742:android:166cea96106b5b6a5ebfdf",
+        "android_client_info": {
+          "package_name": "uz.esla.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWEeAa3plQPEmABF-uaj3O2Y9wLqsY_EE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
