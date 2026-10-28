@@ -1,8 +1,9 @@
 # Сборка APK для Android.
 #
 # Собираем здесь, а не через EAS: expo.dev закрыт в окружении разработки,
-# а у раннеров GitHub Android SDK уже установлен. На выходе — APK в артефактах
-# сборки, его можно скачать и поставить на телефон напрямую.
+# а у раннеров GitHub Android SDK уже установлен. На выходе — APK: в артефактах
+# прогона и, для сборок main, в релизе по постоянной ссылке
+# /releases/latest/download/esla.apk.
 name: Android APK
 
 on:
@@ -12,7 +13,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # Нужно, чтобы готовый APK выкладывался в релиз.
+  contents: write
   # Нужно, чтобы упавшая сборка сама завела issue с текстом ошибки:
   # логи прогона лежат во внешнем хранилище, недоступном из среды разработки.
   issues: write
@@ -77,10 +79,37 @@ jobs:
             --title "Сборка APK упала (прогон ${{ github.run_number }})" \
             --body-file "$RUNNER_TEMP/issue.md"
 
-      - name: Выложить APK
+      - name: Выложить APK в артефакты прогона
         uses: actions/upload-artifact@v4
         with:
           name: esla-apk
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      # Артефакт прогона требует входа в GitHub, живёт 30 дней и не
+      # скачивается с телефона. Поэтому каждая сборка main уходит ещё и в
+      # релиз: ссылка /releases/latest/download/esla.apk постоянная,
+      # открывается без входа и всегда ведёт на свежую сборку.
+      - name: Выложить APK в релиз
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/*.apk "$RUNNER_TEMP/esla.apk"
+          # Описание пишем в файл: в многострочной кавычке отступы YAML
+          # попали бы в текст и Markdown принял бы их за блок кода.
+          {
+            git log -1 --pretty=%s
+            echo
+            echo "Как поставить на телефон: скачать esla.apk, открыть, разрешить"
+            echo "установку из этого источника. Подпись отладочная — приложение"
+            echo "не из Google Play, и система об этом предупредит."
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "build-${{ github.run_number }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "esla · сборка ${{ github.run_number }}" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --latest \
+            "$RUNNER_TEMP/esla.apk"
