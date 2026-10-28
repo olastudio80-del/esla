@@ -1,0 +1,69 @@
+# Сборка для iOS.
+#
+# Запускается вручную: раннеры macOS дороже по минутам, чем Linux.
+#
+# Собирается только под симулятор и без подписи — такую сборку можно
+# запустить на Mac, но НЕ на iPhone. Поставить приложение на настоящий
+# телефон можно лишь подписав его сертификатом Apple: бесплатным Apple ID
+# через Xcode (7 дней) или через Apple Developer Program и TestFlight.
+# Подпись в CI появится, когда в секреты репозитория добавят сертификат
+# и профиль — заготовка внизу файла.
+name: iOS (симулятор)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Установить зависимости
+        run: npm ci
+
+      - name: Проверка типов
+        run: npx tsc --noEmit
+
+      - name: Сгенерировать нативный проект
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: Установить поды
+        working-directory: ios
+        run: pod install
+
+      - name: Собрать под симулятор
+        working-directory: ios
+        run: |
+          xcodebuild \
+            -workspace esla.xcworkspace \
+            -scheme esla \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Выложить сборку
+        uses: actions/upload-artifact@v4
+        with:
+          name: esla-ios-simulator
+          path: ios/build/Build/Products/Release-iphonesimulator/*.app
+          if-no-files-found: error
+          retention-days: 14
+
+# Чтобы собирать для настоящего iPhone, понадобится:
+#   1. Apple Developer Program — 99 долларов в год.
+#   2. Секреты репозитория: сертификат распространения (p12 в base64),
+#      пароль к нему, provisioning profile, App Store Connect API key.
+#   3. Шаг импорта сертификата в keychain раннера и сборка с
+#      -exportArchive вместо CODE_SIGNING_ALLOWED=NO.
+# Без платного аккаунта Apple подписать сборку невозможно — это
+# ограничение Apple, обойти его нельзя.

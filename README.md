@@ -1,56 +1,131 @@
-# Welcome to your Expo app 👋
+# esla
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Мобильное приложение-напоминалка о лекарствах для пожилых и хронических больных
+и их близких. Android и iOS из одной кодовой базы.
 
-## Get started
+> **esla** — от узбекского *eslamoq*: помни, не забывай.
+> Yaqinlarni esla. Dorilarni esla.
 
-1. Install dependencies
+## Зачем
 
-   ```bash
-   npm install
-   ```
+Из презентации проекта:
 
-2. Start the app
+- Соблюдение длительного лечения при хронических болезнях — в среднем **50%**
+  (ВОЗ, 2003), в развивающихся странах ниже.
+- **20,1%** пациентов старше 65 лет пропускают приём лекарства, просто забыв
+  (Ge L. et al., BMC Health Services Research, 2023).
+- **40–80%** сказанного врачом забывается сразу, и почти половина
+  запомненного — неверно (Kessels R., JRSM, 2003).
 
-   ```bash
-   npx expo start
-   ```
+## Что умеет
 
-In the output, you'll find options to open the app in a
+| Возможность | Состояние |
+|---|---|
+| Ввод лекарства с подсказками по названию | готово |
+| Напоминания точно в срок, в том числе офлайн | готово |
+| Отметка приёма, пропуски, история за день и неделю | готово |
+| Опрос о самочувствии с записью в историю болезни | готово |
+| Распознавание тревожных симптомов и вызов скорой | готово |
+| История болезни: анализы, заключения, диагнозы, аллергии | готово |
+| Экстренная медкарта для врача одним нажатием (PDF) | готово |
+| Данные браслета: пульс, сон, шаги | готово |
+| Узбекский и русский языки, три размера шрифта | готово |
+| Живой голосовой диалог с помощником | в работе |
+| Раздел «Ota-onam»: родственник видит приём лекарств | в работе, нужен сервер |
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Как собрать APK
 
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+Сборка идёт в GitHub Actions — там уже установлен Android SDK.
 
-## Get a fresh project
+1. Открыть вкладку **Actions** → workflow **Android APK** → **Run workflow**.
+   Он же запускается сам на каждый push в `main`.
+2. Дождаться зелёной галочки (около 10 минут).
+3. Внизу страницы сборки скачать артефакт **esla-apk**.
+4. Распаковать архив, перекинуть `.apk` на телефон и открыть.
+   Android спросит разрешение на установку из этого источника — разрешить.
 
-When you're ready, run:
+APK подписан отладочным ключом: этого достаточно, чтобы поставить приложение
+на телефон напрямую. Для публикации в Google Play понадобится свой keystore.
+
+## Как запустить на iPhone
+
+Подписать сборку можно только сертификатом Apple — это ограничение Apple.
+
+- **Симулятор на Mac**: workflow **iOS (симулятор)**, либо локально
+  `npx expo run:ios`. Бесплатно, но это не настоящий телефон.
+- **Свой iPhone, бесплатный Apple ID**: открыть проект в Xcode и запустить на
+  подключённом устройстве. Приложение живёт **7 дней**, потом переустановить.
+- **TestFlight**: нужен Apple Developer Program — 99 долларов в год.
+  Заготовка шагов — в конце `.github/workflows/ios.yml`.
+
+## Разработка
 
 ```bash
-npm run reset-project
+npm install
+npx expo start          # дальше запустить на устройстве или эмуляторе
+npx tsc --noEmit        # проверка типов
+npm test                # тесты
+npx eslint .            # линтер
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+Нативные папки `android/` и `ios/` не хранятся в репозитории — их создаёт
+`npx expo prebuild` из `app.json`. Править их руками бессмысленно: следующий
+prebuild перезапишет.
 
-### Other setup steps
+Приложение использует нативные модули (Health Connect, HealthKit,
+уведомления), поэтому в Expo Go оно не запустится — нужна сборка
+для разработки: `npx expo run:android`.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Устройство кода
 
-## Learn more
+```
+src/
+  app/           экраны (expo-router: файл = экран)
+  components/    общие компоненты и дизайн-система из презентации
+  data/          справочник препаратов, симптомы
+  db/            SQLite: схема, миграции, запросы
+  features/      уведомления, данные о здоровье, медкарта, запуск
+  hooks/         загрузка данных для экранов
+  i18n/          узбекский и русский
+  lib/           даты, форматирование, подписи
+  store/         настройки пользователя
+  theme/         цвета, шрифты, размеры
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Несколько решений, которые стоит знать, прежде чем менять код:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- **Время хранится местное, без часового пояса.** «Таблетка в 8 утра» означает
+  восемь утра там, где человек живёт. В UTC переезд или перевод часов сдвинул
+  бы напоминания. Подробнее — в `src/lib/date.ts`.
+- **Дозы создаются по требованию**, а не на годы вперёд: строки на день
+  появляются при первом обращении к нему. См. `src/db/doses.ts`.
+- **Напоминания ставятся в режиме `alarmClock`.** Иначе прошивки Xiaomi,
+  Samsung и Huawei откладывают их ради экономии батареи, а для лекарства это
+  недопустимо. См. `src/features/notifications.ts`.
+- **iOS держит максимум 64 отложенных уведомления** — отсюда бюджет и выбор
+  между ежедневным повтором и расписанием по дням.
+- **Браслет не отдаёт данные напрямую.** Он синхронизируется со своим
+  приложением, а оно пишет в Health Connect (Android) или «Здоровье» (iOS),
+  откуда читаем мы. Это **не живой пульс**: у каждого показателя есть метка
+  времени, и интерфейс её показывает.
+- **Вибро-напоминание на браслете не требует интеграции**: браслет вибрирует,
+  потому что его приложение зеркалит уведомления телефона.
 
-## Join the community
+## Справочник препаратов
 
-Join our community of developers creating universal apps.
+`src/data/medicines.ts` — **не** выгрузка Государственного реестра лекарственных
+средств Узбекистана, а составленный вручную список часто назначаемых препаратов,
+чтобы пожилой человек не набирал длинное название по буквам. В интерфейсе он так
+и подписан: «справочник препаратов».
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Когда появится официальная выгрузка, её нужно положить рядом с той же формой
+`CatalogEntry` и подключить в `CATALOG` — остальной код менять не придётся.
+
+Поиск терпим к написанию: кириллица и латиница, `Concor` находится по «konkor»,
+`Kalsiy` по «kaltsiy», апострофы можно не ставить. Это проверяется тестами.
+
+## Предупреждение
+
+Приложение не ставит диагнозов и не назначает лечение. Оно напоминает о том,
+что назначил врач, и записывает самочувствие. При тревожных симптомах
+приложение прекращает опрос и направляет к врачу или в скорую.

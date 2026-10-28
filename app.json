@@ -4,33 +4,71 @@
     "slug": "esla",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
     "scheme": "esla",
-    "userInterfaceStyle": "automatic",
-    "ios": {
-      "icon": "./assets/expo.icon"
-    },
+    "userInterfaceStyle": "light",
+    "icon": "./assets/images/icon.png",
     "android": {
+      "package": "uz.esla.app",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#F7EEE4",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE",
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_SLEEP"
+      ],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
-    "web": {
-      "output": "server",
-      "favicon": "./assets/images/favicon.png"
+    "ios": {
+      "bundleIdentifier": "uz.esla.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Tahlil va shifokor xulosalarini suratga olish uchun kamera kerak.",
+        "NSPhotoLibraryUsageDescription": "Tahlil natijalarini galereyadan qoʻshish uchun ruxsat kerak.",
+        "NSMicrophoneUsageDescription": "Yordamchi bilan ovozli gaplashish uchun mikrofon kerak.",
+        "NSSpeechRecognitionUsageDescription": "Ovozli savollaringizni tushunish uchun nutqni aniqlash kerak."
+      }
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#F7EEE4",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 140
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#D46E7B"
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Bilaguzuk va Apple Watch maʼlumotlari — yurak urishi, uyqu va qadamlar — ahvolingizni kuzatish uchun oʻqiladi.",
+          "background": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Tahlil va xulosalarni suratga olish uchun kamera kerak.",
+          "photosPermission": "Tahlil natijalarini galereyadan qoʻshish uchun ruxsat kerak."
         }
       ]
     ],
