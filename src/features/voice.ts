@@ -97,6 +97,77 @@ function includesLocale(list: string[], locale: string): boolean {
   return list.some((item) => sameLanguage(item, locale));
 }
 
+export type VoiceDiagnostics = {
+  platform: string;
+  /** Распознавание в принципе доступно на устройстве. */
+  available: boolean;
+  /** Движок, который будет распознавать (только Android). */
+  service: string | null;
+  /** Все локали, которые движок объявляет поддерживаемыми. */
+  locales: string[];
+  /** Локали, пакеты которых скачаны на устройство — работают без интернета. */
+  installed: string[];
+  /** Голоса озвучки, доступные на устройстве. */
+  voices: { language: string; name: string }[];
+  /** Ошибка, если списки получить не удалось. */
+  error: string | null;
+};
+
+/**
+ * Что конкретное устройство действительно умеет с речью.
+ *
+ * Списки языков у Google и Apple разные и меняются от устройства к
+ * устройству, а узбекский есть не везде. Вместо того чтобы гадать,
+ * приложение показывает сырые списки: по ним сразу видно, заработает
+ * голосовой опрос на этом телефоне или останутся только кнопки.
+ */
+export async function diagnose(): Promise<VoiceDiagnostics> {
+  const result: VoiceDiagnostics = {
+    platform: `${Platform.OS} ${String(Platform.Version)}`,
+    available: false,
+    service: null,
+    locales: [],
+    installed: [],
+    voices: [],
+    error: null,
+  };
+
+  try {
+    result.available = ExpoSpeechRecognitionModule.isRecognitionAvailable();
+  } catch (error) {
+    result.error = String(error);
+    return result;
+  }
+
+  if (Platform.OS === 'android') {
+    try {
+      result.service = ExpoSpeechRecognitionModule.getDefaultRecognitionService().packageName;
+    } catch {
+      // Не на всех прошивках есть этот вызов — не повод прерывать проверку.
+    }
+  }
+
+  try {
+    const { locales, installedLocales } = await ExpoSpeechRecognitionModule.getSupportedLocales({
+      androidRecognitionServicePackage:
+        Platform.OS === 'android' ? 'com.google.android.as' : undefined,
+    });
+    result.locales = locales;
+    result.installed = installedLocales;
+  } catch (error) {
+    result.error = String(error);
+  }
+
+  try {
+    const voices = await Speech.getAvailableVoicesAsync();
+    result.voices = voices.map((voice) => ({ language: voice.language, name: voice.name }));
+  } catch {
+    // Список голосов недоступен — озвучка всё равно может работать.
+  }
+
+  return result;
+}
+
 export async function requestVoicePermission(): Promise<boolean> {
   try {
     const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();

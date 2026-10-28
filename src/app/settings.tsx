@@ -193,6 +193,16 @@ export default function SettingsScreen() {
       </View>
 
       <View style={{ gap: space(2) }}>
+        <Caption>{t('voice')}</Caption>
+        <Button
+          label={t('voiceCheck')}
+          icon="mic"
+          variant="soft"
+          onPress={() => router.push('/voice-check')}
+        />
+      </View>
+
+      <View style={{ gap: space(2) }}>
         <Caption>{t('about')}</Caption>
         <Card tint={color.app}>
           <Txt variant="body">{t('aboutText')}</Txt>

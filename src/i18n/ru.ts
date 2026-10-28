@@ -137,6 +137,17 @@ export const ru: Dict = {
   voiceNotSupportedHint: 'На вопросы можно отвечать кнопками — всё так же запишется.',
   voiceHeard: 'Услышал: {text}',
 
+  voiceCheck: 'Проверка голоса',
+  voiceCheckHint: 'Показывает, какие языки распознаёт именно этот телефон.',
+  voiceTestSay: 'Скажите что-нибудь',
+  voiceTestResult: 'Распознано: {text}',
+  voiceTestNothing: 'Ничего не распознано',
+  voiceSupported: 'Поддерживается',
+  voiceInstalled: 'Скачан на телефон',
+  voiceAllLocales: 'Все языки ({n})',
+  voiceVoices: 'Голоса ({n})',
+  voiceEngine: 'Служба распознавания',
+
   // История болезни
   historyTitle: 'История болезни',
   years: '{n} лет',

@@ -57,6 +57,7 @@ function AppShell() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="medicine/add" options={{ presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="voice-check" options={{ presentation: 'modal' }} />
       </Stack>
     </>
   );

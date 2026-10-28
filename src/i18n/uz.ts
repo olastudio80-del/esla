@@ -136,6 +136,17 @@ export const uz = {
   voiceNotSupportedHint: 'Savollarga tugmalar bilan javob berish mumkin — hammasi yoziladi.',
   voiceHeard: 'Eshitdim: {text}',
 
+  voiceCheck: 'Ovozni tekshirish',
+  voiceCheckHint: 'Bu telefon nutqni qaysi tillarda tanishini koʻrsatadi.',
+  voiceTestSay: 'Biror narsa ayting',
+  voiceTestResult: 'Tanildi: {text}',
+  voiceTestNothing: 'Hech narsa tanilmadi',
+  voiceSupported: 'Qoʻllab-quvvatlanadi',
+  voiceInstalled: 'Telefonga yuklangan',
+  voiceAllLocales: 'Barcha tillar ({n})',
+  voiceVoices: 'Ovozlar ({n})',
+  voiceEngine: 'Tanish xizmati',
+
   // История болезни
   historyTitle: 'Kasallik tarixi',
   years: '{n} yosh',
