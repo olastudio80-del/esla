@@ -123,11 +123,20 @@ export function Pill({
   onPress,
   selected = false,
   tint = color.lilacSoft,
+  outline = false,
+  icon,
 }: {
   label: string;
   onPress: () => void;
   selected?: boolean;
   tint?: string;
+  /**
+   * Контурный вид: добавление чего-то нового, а не выбор из готового.
+   * В макете такие кнопки обведены, а не залиты — залитая пилюля там
+   * означает выбранное значение, и путать два смысла нельзя.
+   */
+  outline?: boolean;
+  icon?: IconName;
 }) {
   return (
     <Pressable
@@ -140,12 +149,20 @@ export function Pill({
       style={({ pressed }) => ({
         minHeight: 48,
         paddingHorizontal: space(4),
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: space(2),
         justifyContent: 'center',
         borderRadius: radius.pill,
-        backgroundColor: selected ? color.ink : tint,
+        backgroundColor: selected ? color.ink : outline ? 'transparent' : tint,
+        borderWidth: outline && !selected ? 1.5 : 0,
+        borderColor: color.lineStrong,
         opacity: pressed ? 0.85 : 1,
       })}
     >
+      {icon ? (
+        <Icon name={icon} size={18} color={selected ? color.card : color.ink} strokeWidth={2.4} />
+      ) : null}
       <Txt weight="semibold" color={selected ? color.card : color.ink}>
         {label}
       </Txt>

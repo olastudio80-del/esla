@@ -166,6 +166,10 @@ export default function AddMedicineScreen() {
                   {[labels.form(entry.form), entry.inn].filter(Boolean).join(' · ')}
                 </Txt>
               </View>
+              {/* Галочка значит одно: препарат найден в госреестре, а не
+                  набран от руки. Для человека это подтверждение, что он не
+                  опечатался в названии своего лекарства. */}
+              <Icon name="check" size={20} color={color.sageDeep} strokeWidth={2.6} />
             </Pressable>
           ))}
         </Card>

@@ -27,7 +27,7 @@ export function Input({ label, accent = false, style, ...rest }: InputProps) {
             borderRadius: radius.md,
             backgroundColor: color.card,
             borderWidth: 2,
-            borderColor: accent ? color.pillPink : color.line,
+            borderColor: accent ? color.pillPinkLine : color.lineStrong,
             fontFamily: font.bodySemi,
             fontSize: type('bodyLarge'),
             color: color.ink,

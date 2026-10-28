@@ -308,9 +308,9 @@ function OwnHistory() {
         )}
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space(2) }}>
-          <Pill label={t('docFromCamera')} onPress={() => void pickFromCamera()} tint={color.card} />
-          <Pill label={t('docFromGallery')} onPress={() => void pickFromGallery()} tint={color.card} />
-          <Pill label={t('docFromFiles')} onPress={() => void pickFromFiles()} tint={color.card} />
+          <Pill label={t('docFromCamera')} icon="camera" onPress={() => void pickFromCamera()} outline />
+          <Pill label={t('docFromGallery')} icon="file" onPress={() => void pickFromGallery()} outline />
+          <Pill label={t('docFromFiles')} icon="plus" onPress={() => void pickFromFiles()} outline />
         </View>
       </View>
 

@@ -137,7 +137,24 @@ function CurrentDoseCard({
     <Card tint={missed ? color.peachSoft : semantic.doseNow} raised>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Caption>{t('doseNowCaption')}</Caption>
-        {missed ? <StatusPill status="missed" /> : <Icon name="watch" size={24} color={color.ink} />}
+        {missed ? (
+          <StatusPill status="missed" />
+        ) : (
+          /* Кружок-подложка под часами: в макете это не просто значок, а
+             метка времени, и светлый круг отделяет её от розовой карточки. */
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: color.card,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon name="watch" size={22} color={color.ink} />
+          </View>
+        )}
       </View>
 
       <Txt variant="display" weight="displayExtra" style={{ marginTop: space(2) }}>
