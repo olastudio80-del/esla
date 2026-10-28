@@ -15,7 +15,7 @@ export const MIGRATIONS: string[] = [
     name          TEXT    NOT NULL,
     dosage        TEXT,
     form          TEXT,
-    meal          TEXT    NOT NULL DEFAULT 'any',  -- before | after | any
+    meal          TEXT    NOT NULL DEFAULT 'any',  -- before | with | after | any
     course_days   INTEGER,                          -- NULL = принимать постоянно
     started_on    TEXT    NOT NULL,                 -- YYYY-MM-DD
     note          TEXT,

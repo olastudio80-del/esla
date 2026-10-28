@@ -15,6 +15,10 @@ const FORM_KEYS: Record<string, TKey> = {
   spray: 'formSpray',
   inhaler: 'formInhaler',
   patch: 'formPatch',
+  suppository: 'formSuppository',
+  suspension: 'formSuspension',
+  solution: 'formSolution',
+  other: 'formOther',
 };
 
 /** Подписи, которые встречаются на нескольких экранах: форма выпуска и приём с едой. */
@@ -25,6 +29,7 @@ export function useLabels() {
     (value: Meal): string | null => {
       if (value === 'after') return t('afterMeal');
       if (value === 'before') return t('beforeMeal');
+      if (value === 'with') return t('withMeal');
       return null;
     },
     [t],

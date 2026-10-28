@@ -83,6 +83,7 @@ export async function requestPermission(): Promise<boolean> {
 function mealLabel(lang: Lang, meal: Meal): string | null {
   if (meal === 'after') return translate(lang, 'afterMeal');
   if (meal === 'before') return translate(lang, 'beforeMeal');
+  if (meal === 'with') return translate(lang, 'withMeal');
   return null;
 }
 

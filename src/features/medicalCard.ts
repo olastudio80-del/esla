@@ -54,7 +54,13 @@ export async function buildMedicalCardHtml(input: MedicalCardInput): Promise<str
     .map((med) => {
       const times = med.times.map((x) => hhmm(x.hour, x.minute)).join(', ') || '—';
       const meal =
-        med.meal === 'after' ? t('afterMeal') : med.meal === 'before' ? t('beforeMeal') : '';
+        med.meal === 'after'
+          ? t('afterMeal')
+          : med.meal === 'before'
+            ? t('beforeMeal')
+            : med.meal === 'with'
+              ? t('withMeal')
+              : '';
       return `<tr>
         <td><b>${esc(med.name)}</b></td>
         <td>${esc(med.dosage ?? '—')}</td>

@@ -1,4 +1,5 @@
-export type Meal = 'before' | 'after' | 'any';
+/** Как принимать относительно еды. «with» — во время приёма пищи. */
+export type Meal = 'before' | 'with' | 'after' | 'any';
 export type DoseStatus = 'planned' | 'taken' | 'missed' | 'skipped';
 export type DocKind = 'analysis' | 'report' | 'other';
 export type ConditionKind = 'diagnosis' | 'allergy';

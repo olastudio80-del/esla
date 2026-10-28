@@ -10,7 +10,7 @@ import {
   type PropsWithChildren,
 } from 'react';
 
-import type { TextSize } from '@/theme/tokens';
+import type { MotionLevel, TextSize } from '@/theme/tokens';
 
 export type Lang = 'uz' | 'ru';
 export type Role = 'patient' | 'relative';
@@ -35,6 +35,15 @@ export type Prefs = {
    * при этом не разъезжается.
    */
   boldText: boolean;
+  /**
+   * Сколько движения в интерфейсе.
+   *
+   * «Полное» — живые формы и переходы из презентации. «Меньше» оставляет
+   * только появление элементов, без постоянного фонового движения.
+   * «Выключено» убирает всё: для тех, кого движение отвлекает или
+   * укачивает, и для старых телефонов, где оно подтормаживает.
+   */
+  motion: MotionLevel;
   onboarded: boolean;
 };
 
@@ -57,6 +66,7 @@ const fallback: Prefs = {
   missedAfterMinutes: 30,
   voiceEnabled: true,
   boldText: false,
+  motion: 'full',
   onboarded: false,
 };
 

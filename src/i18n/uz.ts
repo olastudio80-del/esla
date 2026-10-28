@@ -55,6 +55,13 @@ export const uz = {
   intakeTime: 'Qabul vaqti',
   addTime: 'Vaqt qoʻshish',
   mealRelation: 'Ovqatga nisbatan',
+  withMeal: 'Ovqat bilan',
+  timesPerDay: 'Kuniga necha mahal',
+  timesOnce: '1 mahal',
+  timesTwice: '2 mahal',
+  timesThrice: '3 mahal',
+  timesFour: '4 mahal',
+  timesHint: 'Vaqtlarni keyin oʻzgartirish mumkin.',
   afterMeal: 'Ovqatdan keyin',
   beforeMeal: 'Ovqatdan oldin',
   anyTime: 'Farqi yoʻq',
@@ -63,6 +70,21 @@ export const uz = {
   courseOngoing: 'Doimiy',
   perDay: 'kuniga {n} mahal',
   deleteMedicineConfirm: '{name} roʻyxatdan oʻchirilsinmi?',
+
+  courseMonth: 'Bir oy',
+  courseTwoMonths: 'Ikki oy',
+  courseCustom: 'Oʻz muddatim',
+  courseDaysInput: 'Necha kun',
+  interactionsTitle: 'Dorilar birga mos keladimi',
+  interactionDiscuss: 'Shifokor bilan muhokama qiling',
+  interactionSerious: 'Shifokorga aytish kerak',
+  interactionWatch: 'Eʼtibor bering',
+  interactionPair: '{first} va {second}',
+  interactionNotComplete:
+    'Bu toʻliq tekshiruv emas. Hamma qoʻshiluvlar bu yerda yoʻq, va shifokor bu dorilarni ataylab, nazorat ostida buyurgan boʻlishi mumkin. Dorini oʻzingiz toʻxtatmang — avval shifokordan soʻrang.',
+  interactionManualHint:
+    'Qoʻlda yozilgan dorilar tekshirilmaydi: ularda taʼsir qiluvchi modda koʻrsatilmagan.',
+  interactionNone: 'Maʼlum qoʻshiluvlar topilmadi',
 
   // Формы выпуска
   formTablet: 'tabletka',
@@ -73,6 +95,10 @@ export const uz = {
   formOintment: 'malham',
   formPowder: 'kukun',
   formSpray: 'spray',
+  formSuppository: 'shamcha',
+  formSuspension: 'suspenziya',
+  formSolution: 'eritma',
+  formOther: 'boshqa',
   formInhaler: 'inhalyator',
   formPatch: 'plastir',
 

@@ -110,6 +110,29 @@ export type TypeKey = keyof typeof typeScale;
 export const textSizeFactor = { normal: 1, large: 1.2, huge: 1.45, max: 1.8 } as const;
 export type TextSize = keyof typeof textSizeFactor;
 
+/** Насколько живой интерфейс: выбирает сам пользователь. */
+export type MotionLevel = 'full' | 'reduced' | 'off';
+
+/**
+ * Длительности движения.
+ *
+ * Появление быстрое: человек ждёт содержимое, а не представление.
+ * Фоновое движение, наоборот, очень медленное — оно должно ощущаться
+ * как дыхание, а не привлекать внимание и не отвлекать от кнопки.
+ */
+export const motion = {
+  /** Появление элемента на экране. */
+  enter: 420,
+  /** Задержка между соседними элементами при появлении. */
+  stagger: 70,
+  /** Медленное фоновое движение форм. */
+  ambient: 14_000,
+  /** Биение сердца на логотипе. */
+  heartbeat: 2_200,
+  /** Пробег импульса по кардиограмме. */
+  pulse: 3_400,
+} as const;
+
 export const shadow = {
   card: {
     shadowColor: '#3B2D43',

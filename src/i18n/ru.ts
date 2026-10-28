@@ -56,6 +56,13 @@ export const ru: Dict = {
   intakeTime: 'Время приёма',
   addTime: 'Добавить время',
   mealRelation: 'Относительно еды',
+  withMeal: 'Во время еды',
+  timesPerDay: 'Сколько раз в день',
+  timesOnce: '1 раз',
+  timesTwice: '2 раза',
+  timesThrice: '3 раза',
+  timesFour: '4 раза',
+  timesHint: 'Время можно изменить ниже.',
   afterMeal: 'После еды',
   beforeMeal: 'До еды',
   anyTime: 'Неважно',
@@ -64,6 +71,21 @@ export const ru: Dict = {
   courseOngoing: 'Постоянно',
   perDay: '{n} раза в день',
   deleteMedicineConfirm: 'Удалить {name} из списка?',
+
+  courseMonth: 'Месяц',
+  courseTwoMonths: 'Два месяца',
+  courseCustom: 'Свой срок',
+  courseDaysInput: 'Сколько дней',
+  interactionsTitle: 'Сочетание лекарств',
+  interactionDiscuss: 'Обсудите с врачом',
+  interactionSerious: 'Сказать врачу',
+  interactionWatch: 'Обратите внимание',
+  interactionPair: '{first} и {second}',
+  interactionNotComplete:
+    'Это не полная проверка. Здесь не все сочетания, а врач мог назначить эти лекарства осознанно и под наблюдением. Не отменяйте лекарство сами — сначала спросите врача.',
+  interactionManualHint:
+    'Лекарства, вписанные вручную, не проверяются: у них не указано действующее вещество.',
+  interactionNone: 'Известных сочетаний не найдено',
 
   // Формы выпуска
   formTablet: 'таблетка',
@@ -74,6 +96,10 @@ export const ru: Dict = {
   formOintment: 'мазь',
   formPowder: 'порошок',
   formSpray: 'спрей',
+  formSuppository: 'свеча',
+  formSuspension: 'суспензия',
+  formSolution: 'раствор',
+  formOther: 'другое',
   formInhaler: 'ингалятор',
   formPatch: 'пластырь',
 

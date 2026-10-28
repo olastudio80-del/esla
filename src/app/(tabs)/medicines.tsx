@@ -1,5 +1,9 @@
 import { router } from 'expo-router';
+import { useMemo } from 'react';
 import { Alert, Pressable, View } from 'react-native';
+
+import { InteractionWarning } from '@/components/InteractionWarning';
+import { findInteractions } from '@/data/interactions';
 
 import { Button, Gap, IconButton } from '@/components/ui/Button';
 import { Card, SectionTitle } from '@/components/ui/Card';
@@ -16,6 +20,14 @@ import { color, radius, space } from '@/theme/tokens';
 export default function MedicinesScreen() {
   const { t } = useT();
   const { items, loading, remove } = useMedications();
+
+  // Сочетания пересчитываются при каждом изменении списка: человек мог
+  // добавить лекарство на другом экране или удалить одно из пары.
+  const findings = useMemo(
+    () => findInteractions(items.map((m) => ({ name: m.name, inn: m.catalog_id }))),
+    [items],
+  );
+  const hasManual = useMemo(() => items.some((m) => !m.catalog_id), [items]);
 
   return (
     <Screen
@@ -54,7 +66,14 @@ export default function MedicinesScreen() {
           />
         </Card>
       ) : (
-        items.map((med) => <MedicineCard key={med.id} med={med} onRemove={() => confirmRemove(med)} />)
+        <>
+          {items.map((med) => (
+            <MedicineCard key={med.id} med={med} onRemove={() => confirmRemove(med)} />
+          ))}
+          {items.length > 1 ? (
+            <InteractionWarning findings={findings} hasManualEntries={hasManual} />
+          ) : null}
+        </>
       )}
     </Screen>
   );
