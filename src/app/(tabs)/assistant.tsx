@@ -12,6 +12,7 @@ import { Txt } from '@/components/ui/Txt';
 import { addCheckin, lastCheckin, type Checkin, type Feeling } from '@/db/checkins';
 import { FEELING_PHRASES, SYMPTOM_PHRASES } from '@/data/answers';
 import { AMBULANCE_NUMBER, SYMPTOMS, hasAlarm, symptomById } from '@/data/symptoms';
+import { notifyRelatives } from '@/features/cloud/telegram';
 import { pushPatientState } from '@/features/cloud/sync';
 import { downloadOfflineModel } from '@/features/voice';
 import { useVoiceAsk } from '@/hooks/useVoiceAsk';
@@ -46,6 +47,8 @@ export default function AssistantScreen() {
   const [heard, setHeard] = useState<string | null>(null);
   const [previous, setPrevious] = useState<Checkin | null>(null);
   const [saving, setSaving] = useState(false);
+  /** Скольким близким дошло предупреждение. null — отправка не удалась. */
+  const [notified, setNotified] = useState<number | null | undefined>(undefined);
 
   // Чтобы вопрос не задавался заново при каждой перерисовке шага.
   const askedFor = useRef<Step | null>(null);
@@ -346,7 +349,7 @@ export default function AssistantScreen() {
         </Card>
       ) : null}
 
-      {step === 'alarm' ? <AlarmCard /> : null}
+      {step === 'alarm' ? <AlarmCard notified={notified} /> : null}
 
       {step !== 'intro' && step !== 'alarm' ? (
         <Txt variant="caption" color={color.inkSoft} align="center">
@@ -434,7 +437,12 @@ export default function AssistantScreen() {
       setPrevious(await lastCheckin());
       setStep(alarm ? 'alarm' : 'done');
       // Тревожная запись уходит родственнику, обычная остаётся на телефоне.
-      if (alarm) void pushPatientState(null);
+      if (alarm) {
+        void pushPatientState(null);
+        // Сообщение в телеграм — отдельно от выгрузки: экран в приложении
+        // ребёнок может и не открыть, а уведомление придёт само.
+        void notifyRelatives({ symptoms: selected, lang }).then(setNotified);
+      }
     } catch (error) {
       console.warn('[esla] не удалось записать самочувствие', error);
     } finally {
@@ -444,7 +452,7 @@ export default function AssistantScreen() {
 }
 
 /** Тревожное состояние: единственное действие — позвонить за помощью. */
-function AlarmCard() {
+function AlarmCard({ notified }: { notified: number | null | undefined }) {
   const { t } = useT();
   return (
     <Card tint={semantic.danger}>
@@ -465,6 +473,16 @@ function AlarmCard() {
         onPress={() => void Linking.openURL(`tel:${AMBULANCE_NUMBER}`)}
         large
       />
+
+      {/* Пока отправка идёт, строки нет: человеку в этот момент важна
+          кнопка вызова, а не отчёт о рассылке. */}
+      {notified === undefined ? null : (
+        <Txt variant="caption" color={color.card} style={{ marginTop: space(3), opacity: 0.95 }}>
+          {notified && notified > 0
+            ? t('telegramAlarmSent', { count: String(notified) })
+            : t('telegramAlarmNobody')}
+        </Txt>
+      )}
     </Card>
   );
 }

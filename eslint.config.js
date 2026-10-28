@@ -5,7 +5,9 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = [
   ...expoConfig,
   {
-    ignores: ['dist/*', 'android/*', 'ios/*', '.expo/*'],
+    // supabase/functions — код для Deno: там свои глобальные объекты и
+    // импорты по url, и правила для React Native к нему не относятся.
+    ignores: ['dist/*', 'android/*', 'ios/*', '.expo/*', 'supabase/functions/*'],
   },
   {
     // Плагин TypeScript подключён конфигом Expo только для ts/tsx,

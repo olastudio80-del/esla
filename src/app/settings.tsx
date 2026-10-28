@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
+import { TelegramCard } from '@/components/TelegramCard';
 import { ECGLine } from '@/components/motion/ECGLine';
 import { Button, Gap, IconButton, Pill } from '@/components/ui/Button';
 import { Caption, Card } from '@/components/ui/Card';
@@ -171,6 +172,8 @@ export default function SettingsScreen() {
           />
         </View>
       </View>
+
+      {prefs.role === 'patient' && cloudConfigured ? <TelegramCard /> : null}
 
       <View style={{ gap: space(2) }}>
         <Caption>{t('motion')}</Caption>
