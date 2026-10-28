@@ -45,3 +45,4 @@ example
 # Нативные проекты генерируются из app.json командой expo prebuild
 /android
 /ios
+.env

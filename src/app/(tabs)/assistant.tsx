@@ -12,6 +12,7 @@ import { Txt } from '@/components/ui/Txt';
 import { addCheckin, lastCheckin, type Checkin, type Feeling } from '@/db/checkins';
 import { FEELING_PHRASES, SYMPTOM_PHRASES } from '@/data/answers';
 import { AMBULANCE_NUMBER, SYMPTOMS, hasAlarm, symptomById } from '@/data/symptoms';
+import { pushPatientState } from '@/features/cloud/sync';
 import { downloadOfflineModel } from '@/features/voice';
 import { useVoiceAsk } from '@/hooks/useVoiceAsk';
 import { useT } from '@/i18n';
@@ -410,6 +411,8 @@ export default function AssistantScreen() {
       });
       setPrevious(await lastCheckin());
       setStep(alarm ? 'alarm' : 'done');
+      // Тревожная запись уходит родственнику, обычная остаётся на телефоне.
+      if (alarm) void pushPatientState(null);
     } catch (error) {
       console.warn('[esla] не удалось записать самочувствие', error);
     } finally {

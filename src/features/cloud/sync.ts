@@ -1,6 +1,6 @@
 import { supabase } from './client';
 
-import { listCheckins, markCheckinsSynced, unsyncedAlarms } from '@/db/checkins';
+import { markCheckinsSynced, unsyncedAlarms } from '@/db/checkins';
 import { listDosesForDate, markSynced, unsyncedDoses } from '@/db/doses';
 import type { HealthSnapshot } from '@/features/health';
 import { parseLocalISO } from '@/lib/date';

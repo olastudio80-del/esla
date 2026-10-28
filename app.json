@@ -93,6 +93,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "supabase": {
+        "url": "https://rjakxtcpumdqjqzufskh.supabase.co",
+        "publishableKey": "sb_publishable_sF_LRB3BPZ0cFBCJUge4AQ_0B6rqK1C"
+      }
     }
   }
 }

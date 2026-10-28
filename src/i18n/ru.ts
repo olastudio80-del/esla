@@ -210,6 +210,12 @@ export const ru: Dict = {
   alarmFromPatient: '{name} плохо себя чувствует',
   seen: 'Увидел',
 
+  patientPhone: 'Номер телефона',
+  patientPhoneHint: 'Номер хранится только на этом телефоне.',
+  savePhone: 'Сохранить номер',
+  missedToday: 'Пропущено лекарств: {n}',
+  takenToday: 'Принято {taken} из {total}',
+
   // Браслет и Health Connect
   braceletTitle: 'Фитнес-браслет',
   braceletSubtitle: 'Пульс, сон и активность',

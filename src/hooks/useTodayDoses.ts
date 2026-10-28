@@ -4,6 +4,8 @@ import { useCallback, useState } from 'react';
 import { dayProgress, listDosesForDate, markDose, nextActionableDose } from '@/db/doses';
 import type { DayProgress } from '@/db/doses';
 import type { DoseStatus, DoseWithMedication } from '@/db/types';
+import { pushPatientState } from '@/features/cloud/sync';
+import { health } from '@/features/health';
 import { snoozeDose } from '@/features/notifications';
 import { usePrefs } from '@/store/prefs';
 
@@ -58,6 +60,13 @@ export function useTodayDoses() {
     async (dose: DoseWithMedication, status: DoseStatus) => {
       await markDose(dose.id, status);
       await reload();
+      // Родственник должен увидеть отметку сразу. Отправка в фоне:
+      // подтверждение приёма не ждёт сети, иначе кнопка «Ichdim»
+      // подвисала бы при плохой связи.
+      void health
+        .read()
+        .catch(() => null)
+        .then((vitals) => pushPatientState(vitals));
     },
     [reload],
   );

@@ -209,6 +209,12 @@ export const uz = {
   alarmFromPatient: '{name} oʻzini yomon his qilyapti',
   seen: 'Koʻrdim',
 
+  patientPhone: 'Telefon raqami',
+  patientPhoneHint: 'Raqam faqat shu telefonda saqlanadi.',
+  savePhone: 'Raqamni saqlash',
+  missedToday: '{n} ta dori oʻtkazib yuborildi',
+  takenToday: '{taken} / {total} ichildi',
+
   // Браслет и Health Connect
   braceletTitle: 'Fitnes-bilaguzuk',
   braceletSubtitle: 'Yurak urishi, uyqu va faollik',
