@@ -186,7 +186,7 @@ async function handleSweep(): Promise<Response> {
 
 async function sweepSilence(): Promise<number> {
   const db = service();
-  const { data, error } = await db.rpc('esla_telegram_silent_patients', {
+  const { data, error } = await db.rpc('esla_notify_silent_patients', {
     p_after_hours: SILENCE_AFTER_HOURS,
   });
   if (error) {
@@ -215,7 +215,7 @@ async function sweepSilence(): Promise<number> {
  */
 async function sweepMissed(): Promise<number> {
   const db = service();
-  const { data, error } = await db.rpc('esla_telegram_missed_doses', {
+  const { data, error } = await db.rpc('esla_notify_missed_doses', {
     p_grace_minutes: MISSED_GRACE_MINUTES,
     p_window_minutes: MISSED_WINDOW_MINUTES,
   });
