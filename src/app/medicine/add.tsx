@@ -14,6 +14,7 @@ import { createMedication, listMedications } from '@/db/medications';
 import type { Meal } from '@/db/types';
 import { findInteractions, type InteractionFinding } from '@/data/interactions';
 import { searchCatalog, type CatalogEntry } from '@/data/medicines';
+import { pushPatientState } from '@/features/cloud/sync';
 import { rescheduleAll, requestPermission } from '@/features/notifications';
 import { useT } from '@/i18n';
 import { hhmm } from '@/lib/date';
@@ -374,6 +375,11 @@ export default function AddMedicineScreen() {
         catalogId: picked?.inn ?? null,
         times,
       });
+
+      // План уходит наверх сразу, не дожидаясь первой отметки приёма:
+      // иначе сервер не знал бы, что доза вообще планировалась, и не смог
+      // бы сказать близким, что её не отметили.
+      void pushPatientState(null);
 
       // Разрешение спрашиваем именно здесь: человек только что завёл
       // лекарство и ждёт напоминаний — просьба понятна по контексту.

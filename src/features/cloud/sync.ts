@@ -3,7 +3,7 @@ import { supabase } from './client';
 import { markCheckinsSynced, unsyncedAlarms } from '@/db/checkins';
 import { listDosesForDate, markSynced, unsyncedDoses } from '@/db/doses';
 import type { HealthSnapshot } from '@/features/health';
-import { parseLocalISO } from '@/lib/date';
+import { addDays, dateKey, parseLocalISO } from '@/lib/date';
 
 /**
  * Обмен с облаком для раздела «Ota-onam».
@@ -137,13 +137,28 @@ export async function pushPatientState(vitals: HealthSnapshot | null): Promise<v
   }
 }
 
+/**
+ * На сколько дней вперёд уходит план приёма.
+ *
+ * Не только сегодня — иначе сервер узнавал бы о дозе ровно в тот момент,
+ * когда человек её отмечает, и не смог бы заметить, что доза осталась
+ * неотмеченной. А заметить это должен именно сервер: телефон человека,
+ * который перестал открывать приложение, ничего никому не скажет.
+ */
+const PLAN_DAYS_AHEAD = 3;
+
 async function pushDoses(userId: string): Promise<void> {
   if (!supabase) return;
-  // Отправляем и отмеченные дозы, и сегодняшний план: ребёнок должен
-  // видеть не только пропуски, но и то, что приём ещё впереди.
-  const [changed, today] = await Promise.all([unsyncedDoses(), listDosesForDate()]);
-  const byLocalId = new Map<number, (typeof today)[number]>();
-  for (const dose of [...today, ...changed]) byLocalId.set(dose.id, dose);
+  // Отправляем отмеченные дозы и план на несколько дней вперёд: ребёнок
+  // должен видеть не только пропуски, но и то, что приём ещё впереди.
+  const days = Array.from({ length: PLAN_DAYS_AHEAD }, (_, i) => addDays(dateKey(), i));
+  const [changed, ...plan] = await Promise.all([
+    unsyncedDoses(),
+    ...days.map((day) => listDosesForDate(day)),
+  ]);
+
+  const byLocalId = new Map<number, (typeof changed)[number]>();
+  for (const dose of [...plan.flat(), ...changed]) byLocalId.set(dose.id, dose);
   if (byLocalId.size === 0) return;
 
   const rows = [...byLocalId.values()].map((dose) => ({

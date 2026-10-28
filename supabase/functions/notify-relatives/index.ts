@@ -4,14 +4,17 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 /**
  * Отправка тревог близким в телеграм.
  *
- * Два повода. Первый — тревожный симптом: приложение само зовёт эту функцию
- * сразу после того, как человек отметил такой симптом. Второй — долгое
- * молчание телефона: его замечает не приложение, а расписание на сервере,
- * потому что молчащий телефон по определению ничего о себе не сообщит.
+ * Три повода. Тревожный симптом: приложение само зовёт эту функцию сразу
+ * после того, как человек его отметил. Неотмеченный приём лекарства и
+ * долгое молчание телефона: их замечает не приложение, а расписание на
+ * сервере — тот, кто перестал принимать лекарства, обычно перестаёт и
+ * открывать приложение, а молчащий телефон по определению ничего о себе
+ * не сообщит.
  *
- * ЧТО УХОДИТ НАРУЖУ. Имя и симптом. Свободный рассказ человека («note») не
- * отправляется никогда: это его слова о себе, и для решения «ехать или
- * позвонить» они не нужны — близкий прочитает их в приложении.
+ * ЧТО УХОДИТ НАРУЖУ. Имя, симптом и названия лекарств. Свободный рассказ
+ * человека («note») не отправляется никогда: это его слова о себе, и для
+ * решения «ехать или позвонить» они не нужны — близкий прочитает их в
+ * приложении.
  */
 
 const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '';
@@ -24,6 +27,22 @@ const ALARM_COOLDOWN_MINUTES = 15;
 const SILENCE_COOLDOWN_MINUTES = 12 * 60;
 /** Сколько часов молчания считаем поводом потревожить близких. */
 const SILENCE_AFTER_HOURS = 36;
+
+/**
+ * Сколько ждём после времени приёма, прежде чем сказать близким.
+ *
+ * Два часа — не формальность. Человек мог выпить таблетку и отложить
+ * телефон, не нажав кнопку; за два часа он обычно до приложения
+ * добирается. Меньше — и близкие получали бы ложные тревоги, а на третьей
+ * такой они перестанут читать сообщения вовсе.
+ */
+const MISSED_GRACE_MINUTES = 120;
+/** Старше этого дозы не вспоминаем: вчерашний пропуск уже не новость. */
+const MISSED_WINDOW_MINUTES = 8 * 60;
+/** Не чаще раза в шесть часов: это сообщение, а не упрёк. */
+const MISSED_COOLDOWN_MINUTES = 6 * 60;
+/** Сколько букв списка лекарств влезает в сообщение. */
+const MEDICINES_LIMIT = 100;
 
 type Lang = 'uz' | 'ru';
 
@@ -69,6 +88,27 @@ function silenceText(name: string, hours: number): string {
   ].join('\n');
 }
 
+/**
+ * Неотмеченный приём.
+ *
+ * Формулировка важнее механики: мы знаем только то, что кнопку не нажали,
+ * и сообщение обязано говорить именно это. «Не принял лекарство» было бы
+ * обвинением, которого мы проверить не можем, и оно же било бы по
+ * отношениям в семье, ради которых всё это и делается.
+ */
+function missedText(name: string, medicines: string): string {
+  const what =
+    medicines.length > MEDICINES_LIMIT ? `${medicines.slice(0, MEDICINES_LIMIT)}…` : medicines;
+  return [
+    '💊 esla',
+    `${name}: ${what} qabulini belgilamadi.`,
+    'Dorini ichgan boʻlishi ham mumkin — iltimos, qoʻngʻiroq qilib soʻrang.',
+    '',
+    `${name}: не отметил приём — ${what}.`,
+    'Возможно, лекарство принято, а кнопка не нажата — позвоните и спросите.',
+  ].join('\n');
+}
+
 function label(name: string | null): string {
   return name && name.trim() ? name.trim() : 'Yaqiningiz / ваш близкий';
 }
@@ -76,7 +116,7 @@ function label(name: string | null): string {
 /** Разослать всем подписчикам пациента. Возвращает число доставленных. */
 async function fanOut(
   patientId: string,
-  kind: 'alarm' | 'silence' | 'test',
+  kind: 'alarm' | 'silence' | 'missed' | 'test',
   cooldownMinutes: number,
   text: string,
 ): Promise<number> {
@@ -165,16 +205,53 @@ async function handleSweep(): Promise<Response> {
     return json({ error: 'failed' }, 500);
   }
 
-  let sent = 0;
+  let silence = 0;
   for (const row of (data ?? []) as { patient_id: string; patient_name: string | null }[]) {
-    sent += await fanOut(
+    silence += await fanOut(
       row.patient_id,
       'silence',
       SILENCE_COOLDOWN_MINUTES,
       silenceText(label(row.patient_name), SILENCE_AFTER_HOURS),
     );
   }
-  return json({ sent });
+
+  const missed = await sweepMissed();
+  return json({ sent: silence + missed, silence, missed });
+}
+
+/**
+ * Неотмеченные дозы.
+ *
+ * Тоже работа сервера, а не приложения: человек, перестающий принимать
+ * лекарства, обычно перестаёт и открывать приложение — именно поэтому план
+ * приёма уходит наверх заранее, а не в момент отметки.
+ */
+async function sweepMissed(): Promise<number> {
+  const db = service();
+  const { data, error } = await db.rpc('esla_telegram_missed_doses', {
+    p_grace_minutes: MISSED_GRACE_MINUTES,
+    p_window_minutes: MISSED_WINDOW_MINUTES,
+  });
+  if (error) {
+    console.error('[esla] неотмеченные дозы не получены', error.message);
+    return 0;
+  }
+
+  let sent = 0;
+  for (const row of (data ?? []) as {
+    patient_id: string;
+    patient_name: string | null;
+    medicines: string | null;
+  }[]) {
+    if (!row.medicines) continue;
+    sent += await fanOut(
+      row.patient_id,
+      'missed',
+      MISSED_COOLDOWN_MINUTES,
+      missedText(label(row.patient_name), row.medicines),
+    );
+  }
+  return sent;
 }
 
 function json(body: unknown, status = 200): Response {
