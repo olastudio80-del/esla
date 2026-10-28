@@ -1,7 +1,8 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 
+import { VoiceBar } from '@/components/VoiceBar';
 import { Button, Gap, Pill } from '@/components/ui/Button';
 import { Caption, Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
@@ -9,9 +10,13 @@ import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { Txt } from '@/components/ui/Txt';
 import { addCheckin, lastCheckin, type Checkin, type Feeling } from '@/db/checkins';
+import { FEELING_PHRASES, SYMPTOM_PHRASES } from '@/data/answers';
 import { AMBULANCE_NUMBER, SYMPTOMS, hasAlarm, symptomById } from '@/data/symptoms';
+import { downloadOfflineModel } from '@/features/voice';
+import { useVoiceAsk } from '@/hooks/useVoiceAsk';
 import { useT } from '@/i18n';
 import { timeOf } from '@/lib/date';
+import { usePrefs } from '@/store/prefs';
 import { color, radius, semantic, space } from '@/theme/tokens';
 
 type Step = 'intro' | 'feeling' | 'symptoms' | 'severity' | 'note' | 'done' | 'alarm';
@@ -19,34 +24,83 @@ type Step = 'intro' | 'feeling' | 'symptoms' | 'severity' | 'note' | 'done' | 'a
 /**
  * Помощник, который спрашивает о самочувствии и пишет ответ в мед книжку.
  *
- * Опрос сценарный, без сети: именно он выполняет саму задачу — записать
- * состояние человека в историю болезни. Живой голосовой разговор встраивается
- * сверху как способ задать те же вопросы, а не как отдельная функция, поэтому
- * без интернета возможность рассказать о самочувствии не исчезает.
+ * Вопросы озвучиваются, ответ распознаётся на самом телефоне — без интернета,
+ * без отправки голоса наружу и без языковой модели: на закрытый вопрос
+ * достаточно узнать знакомое слово, а свободный рассказ записывается
+ * дословно, потому что интерпретировать его мы и не собираемся.
+ *
+ * Кнопки на экране есть всегда. Распознавание может не понять, язык может
+ * быть не установлен, микрофон может быть занят — ни один из этих случаев
+ * не должен лишить человека возможности сказать, что ему плохо.
  */
 export default function AssistantScreen() {
   const { t, lang } = useT();
+  const voice = useVoiceAsk();
+
   const [step, setStep] = useState<Step>('intro');
   const [feeling, setFeeling] = useState<Feeling>('ok');
   const [symptoms, setSymptoms] = useState<string[]>([]);
   const [severity, setSeverity] = useState<number | null>(null);
   const [note, setNote] = useState('');
+  const [heard, setHeard] = useState<string | null>(null);
   const [previous, setPrevious] = useState<Checkin | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Чтобы вопрос не задавался заново при каждой перерисовке шага.
+  const askedFor = useRef<Step | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       lastCheckin()
         .then(setPrevious)
         .catch((error) => console.warn('[esla] не удалось прочитать опросы', error));
-    }, []),
+      return () => voice.cancel();
+    }, [voice]),
   );
 
-  const symptomLabel = (id: string) => {
-    const symptom = symptomById(id);
-    if (!symptom) return id;
-    return lang === 'ru' ? symptom.ru : symptom.uz;
-  };
+  const symptomLabel = useCallback(
+    (id: string) => {
+      const symptom = symptomById(id);
+      if (!symptom) return id;
+      return lang === 'ru' ? symptom.ru : symptom.uz;
+    },
+    [lang],
+  );
+
+  // Голосовой вопрос на тех шагах, где есть что спросить.
+  useEffect(() => {
+    if (!voice.enabled) return;
+    if (step !== 'feeling' && step !== 'symptoms') return;
+    if (askedFor.current === step) return;
+    askedFor.current = step;
+
+    let alive = true;
+    (async () => {
+      if (step === 'feeling') {
+        const answer = await voice.ask(t('checkinQuestion'), FEELING_PHRASES);
+        if (!alive) return;
+        setHeard(answer.heard);
+        if (answer.value === 'good') {
+          void finish('good', [], null);
+        } else if (answer.value) {
+          setFeeling(answer.value);
+          setStep('symptoms');
+        }
+        return;
+      }
+
+      const answer = await voice.ask(t('symptomsQuestion'), SYMPTOM_PHRASES);
+      if (!alive) return;
+      setHeard(answer.heard);
+      if (answer.value) toggleSymptom(answer.value);
+    })();
+
+    return () => {
+      alive = false;
+    };
+    // finish и toggleSymptom описаны ниже и стабильны в пределах шага.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, voice.enabled]);
 
   return (
     <Screen>
@@ -73,18 +127,51 @@ export default function AssistantScreen() {
         </View>
       </View>
 
-      {step === 'intro' ? (
-        <IntroStep
-          previous={previous}
-          symptomLabel={symptomLabel}
-          onStart={() => {
-            setFeeling('ok');
-            setSymptoms([]);
-            setSeverity(null);
-            setNote('');
-            setStep('feeling');
-          }}
+      {voice.enabled && step !== 'intro' && step !== 'done' && step !== 'alarm' ? (
+        <VoiceBar
+          state={voice.state}
+          partial={voice.partial}
+          offline={voice.capabilities.offlineReady}
+          onPress={() => void repeatQuestion()}
         />
+      ) : null}
+
+      {heard && step !== 'done' ? (
+        <Txt variant="caption" color={color.inkSoft}>
+          {t('voiceHeard', { text: heard })}
+        </Txt>
+      ) : null}
+
+      {step === 'intro' ? (
+        <>
+          <Card tint={semantic.assistantSoft}>
+            <Txt variant="body">{t('assistantWelcome')}</Txt>
+            <Gap size={4} />
+            <Button label={t('checkinStart')} icon="chat" onPress={start} large />
+          </Card>
+
+          <View style={{ gap: space(2) }}>
+            <Caption>{t('lastCheckin')}</Caption>
+            {previous ? (
+              <Card>
+                <Txt weight="semibold">
+                  {previous.created_at.slice(0, 10)} · {timeOf(previous.created_at)}
+                </Txt>
+                <Txt variant="body" color={color.inkSoft} style={{ marginTop: space(2) }}>
+                  {previous.symptoms.length > 0
+                    ? previous.symptoms.map(symptomLabel).join(', ')
+                    : t('symptomsNone')}
+                </Txt>
+              </Card>
+            ) : (
+              <Txt variant="body" color={color.inkSoft}>
+                {t('noCheckins')}
+              </Txt>
+            )}
+          </View>
+
+          <VoiceStatusCard />
+        </>
       ) : null}
 
       {step === 'feeling' ? (
@@ -94,12 +181,7 @@ export default function AssistantScreen() {
           </Txt>
           <Gap size={4} />
           <View style={{ gap: space(3) }}>
-            <Button
-              label={t('feelingGood')}
-              icon="check"
-              onPress={() => void finish('good', [], null)}
-              large
-            />
+            <Button label={t('feelingGood')} icon="check" onPress={() => void finish('good', [], null)} large />
             <Button
               label={t('feelingOk')}
               variant="soft"
@@ -133,36 +215,14 @@ export default function AssistantScreen() {
                 key={symptom.id}
                 label={lang === 'ru' ? symptom.ru : symptom.uz}
                 selected={symptoms.includes(symptom.id)}
-                onPress={() =>
-                  setSymptoms((prev) =>
-                    prev.includes(symptom.id)
-                      ? prev.filter((id) => id !== symptom.id)
-                      : [...prev, symptom.id],
-                  )
-                }
+                onPress={() => toggleSymptom(symptom.id)}
                 // Тревожные состояния подкрашены иначе — их видно до нажатия.
                 tint={symptom.alarm ? color.blushSoft : color.lilacSoft}
               />
             ))}
           </View>
           <Gap size={4} />
-          <Button
-            label={symptoms.length === 0 ? t('symptomsNone') : t('add')}
-            onPress={() => {
-              // Тревожный симптом прекращает опрос: дальше расспрашивать
-              // человека о «выраженности» нельзя, нужно отправить к врачу.
-              if (hasAlarm(symptoms)) {
-                void finish(feeling, symptoms, null, true);
-                return;
-              }
-              if (symptoms.length === 0) {
-                void finish('good', [], null);
-                return;
-              }
-              setStep('severity');
-            }}
-            large
-          />
+          <Button label={symptoms.length === 0 ? t('symptomsNone') : t('add')} onPress={afterSymptoms} large />
         </Card>
       ) : null}
 
@@ -220,13 +280,21 @@ export default function AssistantScreen() {
             multiline
             style={{ minHeight: 110, textAlignVertical: 'top' }}
           />
+          {voice.enabled ? (
+            <>
+              <Gap size={2} />
+              {/* Свободный рассказ записывается дословно: понимать его не нужно. */}
+              <Button
+                label={t('voiceTap')}
+                icon="mic"
+                variant="soft"
+                onPress={() => void dictateNote()}
+                busy={voice.state === 'listening'}
+              />
+            </>
+          ) : null}
           <Gap size={4} />
-          <Button
-            label={t('save')}
-            onPress={() => void finish(feeling, symptoms, severity)}
-            busy={saving}
-            large
-          />
+          <Button label={t('save')} onPress={() => void finish(feeling, symptoms, severity)} busy={saving} large />
           <Pressable
             accessibilityRole="button"
             onPress={() => void finish(feeling, symptoms, severity)}
@@ -257,8 +325,6 @@ export default function AssistantScreen() {
 
       {step === 'alarm' ? <AlarmCard /> : null}
 
-      {step === 'intro' ? <VoiceModeCard /> : null}
-
       {step !== 'intro' && step !== 'alarm' ? (
         <Txt variant="caption" color={color.inkSoft} align="center">
           {t('assistantDisclaimer')}
@@ -266,6 +332,63 @@ export default function AssistantScreen() {
       ) : null}
     </Screen>
   );
+
+  function start() {
+    setFeeling('ok');
+    setSymptoms([]);
+    setSeverity(null);
+    setNote('');
+    setHeard(null);
+    askedFor.current = null;
+    setStep('feeling');
+  }
+
+  function toggleSymptom(id: string) {
+    setSymptoms((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function afterSymptoms() {
+    // Тревожный симптом прекращает опрос: расспрашивать дальше о
+    // «выраженности» нельзя, человека нужно направить к врачу.
+    if (hasAlarm(symptoms)) {
+      void finish(feeling, symptoms, null, true);
+      return;
+    }
+    if (symptoms.length === 0) {
+      void finish('good', [], null);
+      return;
+    }
+    setStep('severity');
+  }
+
+  /** Повторить вопрос голосом — человек мог не расслышать. */
+  async function repeatQuestion() {
+    if (voice.state !== 'idle') {
+      voice.cancel();
+      return;
+    }
+    askedFor.current = null;
+    if (step === 'feeling') {
+      const answer = await voice.ask(t('checkinQuestion'), FEELING_PHRASES);
+      setHeard(answer.heard);
+      if (answer.value === 'good') void finish('good', [], null);
+      else if (answer.value) {
+        setFeeling(answer.value);
+        setStep('symptoms');
+      }
+    } else if (step === 'symptoms') {
+      const answer = await voice.ask(t('symptomsQuestion'), SYMPTOM_PHRASES);
+      setHeard(answer.heard);
+      if (answer.value) toggleSymptom(answer.value);
+    } else {
+      await dictateNote();
+    }
+  }
+
+  async function dictateNote() {
+    const text = await voice.dictate();
+    if (text) setNote((prev) => (prev ? `${prev} ${text}` : text));
+  }
 
   async function finish(
     value: Feeling,
@@ -275,13 +398,14 @@ export default function AssistantScreen() {
   ) {
     if (saving) return;
     setSaving(true);
+    voice.cancel();
     try {
       await addCheckin({
         feeling: alarm ? 'bad' : value,
         symptoms: selected,
         severity: severityValue,
         note: note || null,
-        source: 'manual',
+        source: voice.enabled ? 'assistant' : 'manual',
         alarm,
       });
       setPrevious(await lastCheckin());
@@ -292,48 +416,6 @@ export default function AssistantScreen() {
       setSaving(false);
     }
   }
-}
-
-/** Экран до начала опроса: что было в прошлый раз и одна кнопка. */
-function IntroStep({
-  previous,
-  symptomLabel,
-  onStart,
-}: {
-  previous: Checkin | null;
-  symptomLabel: (id: string) => string;
-  onStart: () => void;
-}) {
-  const { t } = useT();
-  return (
-    <>
-      <Card tint={semantic.assistantSoft}>
-        <Txt variant="body">{t('assistantWelcome')}</Txt>
-        <Gap size={4} />
-        <Button label={t('checkinStart')} icon="chat" onPress={onStart} large />
-      </Card>
-
-      <View style={{ gap: space(2) }}>
-        <Caption>{t('lastCheckin')}</Caption>
-        {previous ? (
-          <Card>
-            <Txt weight="semibold">
-              {previous.created_at.slice(0, 10)} · {timeOf(previous.created_at)}
-            </Txt>
-            <Txt variant="body" color={color.inkSoft} style={{ marginTop: space(2) }}>
-              {previous.symptoms.length > 0
-                ? previous.symptoms.map(symptomLabel).join(', ')
-                : t('symptomsNone')}
-            </Txt>
-          </Card>
-        ) : (
-          <Txt variant="body" color={color.inkSoft}>
-            {t('noCheckins')}
-          </Txt>
-        )}
-      </View>
-    </>
-  );
 }
 
 /** Тревожное состояние: единственное действие — позвонить за помощью. */
@@ -362,23 +444,63 @@ function AlarmCard() {
   );
 }
 
-/**
- * Голосовой режим. Пока подключение не настроено, честно говорим об этом и
- * не прячем кнопку — иначе пользователь решит, что функции вообще нет.
- */
-function VoiceModeCard() {
+/** Что телефон умеет с голосом — и как сделать, чтобы работал без интернета. */
+function VoiceStatusCard() {
   const { t } = useT();
+  const { prefs } = usePrefs();
+  const voice = useVoiceAsk();
+  const [requested, setRequested] = useState(false);
+
+  if (!voice.capabilities.recognition || !voice.capabilities.localeSupported) {
+    return (
+      <Card>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
+          <Icon name="mic" size={22} color={color.inkSoft} />
+          <Txt weight="semibold" style={{ flex: 1 }}>
+            {t('voiceNotSupported')}
+          </Txt>
+        </View>
+        <Txt variant="caption" color={color.inkSoft} style={{ marginTop: space(2) }}>
+          {t('voiceNotSupportedHint')}
+        </Txt>
+      </Card>
+    );
+  }
+
+  if (voice.capabilities.offlineReady) {
+    return (
+      <Card tint={color.sageSoft}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
+          <Icon name="mic" size={22} color={color.sageDeep} />
+          <Txt weight="semibold" color={color.sageDeep} style={{ flex: 1 }}>
+            {t('voiceOfflineReady')}
+          </Txt>
+        </View>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
-        <Icon name="mic" size={24} color={color.inkSoft} />
+        <Icon name="mic" size={22} color={color.inkSoft} />
         <Txt weight="semibold" style={{ flex: 1 }}>
-          {t('voiceModeOff')}
+          {t('voiceOnlineOnly')}
         </Txt>
       </View>
       <Txt variant="caption" color={color.inkSoft} style={{ marginTop: space(2) }}>
-        {t('voiceModeOffHint')}
+        {t('voiceDownloadHint')}
       </Txt>
+      <Gap size={3} />
+      <Button
+        label={t('voiceDownloadModel')}
+        variant="soft"
+        disabled={requested}
+        onPress={() => {
+          setRequested(true);
+          void downloadOfflineModel(prefs.lang);
+        }}
+      />
     </Card>
   );
 }

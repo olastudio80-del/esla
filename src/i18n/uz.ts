@@ -125,6 +125,17 @@ export const uz = {
   voiceModeOff: 'Ovozli suhbat hozir ulanmagan',
   voiceModeOffHint: 'Ovozli suhbat uchun internet va sozlangan ulanish kerak. Shunga qaramay ahvolni savollar orqali yozib qoʻyish ishlaydi.',
 
+  voiceTap: 'Gapirish uchun bosing',
+  voiceSpeaking: 'Aytyapman…',
+  voiceNotUnderstood: 'Tushunmadim — tugmani bosing yoki qayta ayting',
+  voiceOfflineReady: 'Internetsiz ishlaydi',
+  voiceOnlineOnly: 'Internet kerak',
+  voiceDownloadModel: 'Tilni telefonga yuklab olish',
+  voiceDownloadHint: 'Til yuklab olinsa, ovoz internetsiz ham ishlaydi va gapirganingiz telefondan chiqmaydi.',
+  voiceNotSupported: 'Bu telefonda ovozli javob ishlamaydi',
+  voiceNotSupportedHint: 'Savollarga tugmalar bilan javob berish mumkin — hammasi yoziladi.',
+  voiceHeard: 'Eshitdim: {text}',
+
   // История болезни
   historyTitle: 'Kasallik tarixi',
   years: '{n} yosh',

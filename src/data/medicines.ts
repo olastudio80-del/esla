@@ -16,6 +16,8 @@
  * объясняет назначенное — помощник, на основе конкретного рецепта.
  */
 
+import { fold } from '@/lib/text';
+
 export type MedForm =
   | 'tablet'
   | 'capsule'
@@ -252,58 +254,6 @@ export const GROUP_LABELS: Record<GroupKey, { uz: string; ru: string }> = {
   eyes: { uz: 'Koʻz', ru: 'Глаза' },
 };
 
-/**
- * Приводит написание к единому виду для сравнения.
- *
- * Зачем так сложно: одно и то же лекарство в Узбекистане пишут и латиницей,
- * и кириллицей, и торговым названием, причём на слух — «Konkor» вместо
- * «Concor», «kaltsiy» вместо «Kalsiy», «Xloropiramin» вместо «Хлоропирамин».
- * Пожилой человек не станет подбирать правильную букву: если поиск не нашёл,
- * он решит, что приложение не работает. Поэтому кириллица переводится в
- * латиницу, а неоднозначные сочетания сводятся к одной форме:
- * c/k/q → k, ts/c → s, x/kh → h, zh → j, двойные согласные → одна.
- *
- * Это сравнение, а не отображение: пользователю всегда показываем исходное
- * написание из справочника.
- */
-const CYRILLIC: Record<string, string> = {
-  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'j', з: 'z',
-  и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r',
-  с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 'ts', ч: 'ch', ш: 'sh',
-  щ: 'sh', ъ: '', ы: 'i', ь: '', э: 'e', ю: 'yu', я: 'ya',
-  // Узбекская кириллица
-  ў: 'o', қ: 'k', ғ: 'g', ҳ: 'h',
-};
-
-function normalize(value: string): string {
-  let s = value
-    .toLowerCase()
-    // Все виды апострофов: oʻ, o', o` — пишут как попало.
-    .replace(/[\u02bb\u02bc\u2018\u2019'`\u00b4]/g, '');
-
-  s = s.replace(/[\u0400-\u04ff]/g, (ch) => CYRILLIC[ch] ?? ch);
-
-  // Порядок важен: сначала трёх- и двухбуквенные сочетания, потом одиночные.
-  s = s
-    .replace(/shch|sch/g, 'sh')
-    .replace(/zh/g, 'j')
-    .replace(/kh/g, 'h')
-    .replace(/ph/g, 'f')
-    // ch сохраняем: это отдельный звук. Прячем, чтобы c→k его не разрушил.
-    .replace(/ch/g, '\u0001')
-    .replace(/ts/g, 's')
-    .replace(/[cq]/g, 'k')
-    .replace(/x/g, 'h')
-    .replace(/w/g, 'v')
-    .replace(/\u0001/g, 'ch')
-    // Удвоение согласных на слух не различается: allopurinol / alopurinol.
-    .replace(/([bdfgjklmnprstvz])\1+/g, '$1')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  return s;
-}
-
 /** Все написания одного препарата, по которым его можно найти. */
 function aliases(entry: CatalogEntry): string[] {
   return [entry.uz, entry.ru, ...(entry.brands ?? [])];
@@ -321,7 +271,7 @@ export type CatalogHit = {
  * у которого это внутри слова.
  */
 export function searchCatalog(query: string, limit = 6): CatalogHit[] {
-  const q = normalize(query);
+  const q = fold(query);
   if (q.length < 2) return [];
 
   const prefix: CatalogHit[] = [];
@@ -330,7 +280,7 @@ export function searchCatalog(query: string, limit = 6): CatalogHit[] {
   for (const entry of CATALOG) {
     let best: { matched: string; at: number } | null = null;
     for (const alias of aliases(entry)) {
-      const at = normalize(alias).indexOf(q);
+      const at = fold(alias).indexOf(q);
       if (at < 0) continue;
       // Среди написаний одного препарата выбираем самое раннее совпадение.
       if (!best || at < best.at) best = { matched: alias, at };

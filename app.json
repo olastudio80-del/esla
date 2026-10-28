@@ -70,6 +70,16 @@
           "cameraPermission": "Tahlil va xulosalarni suratga olish uchun kamera kerak.",
           "photosPermission": "Tahlil natijalarini galereyadan qoʻshish uchun ruxsat kerak."
         }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Ahvolingiz haqida gapirganingizni eshitish uchun mikrofon kerak.",
+          "speechRecognitionPermission": "Aytganlaringizni matnga aylantirish uchun kerak. Nutq telefonning oʻzida taniladi.",
+          "androidSpeechServicePackages": [
+            "com.google.android.as"
+          ]
+        }
       ]
     ],
     "experiments": {
