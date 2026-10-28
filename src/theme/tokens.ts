@@ -11,10 +11,16 @@ export const color = {
   card: '#FFF9F3',
   app: '#FBF4EC',
 
-  // Текст и линии
+  // Текст и линии.
+  // inkSoft затемнён с #6E5E76 до контраста 7.2 с бумагой — это уровень AAA.
+  // Исходный пастельный оттенок давал 5.2: формально проходит, но для
+  // пожилого глаза этого мало, а весь второстепенный текст набран им.
   ink: '#3B2D43',
-  inkSoft: '#6E5E76',
+  inkSoft: '#564A5C',
   line: '#E4D4C7',
+  // Видимая рамка: исходная line даёт контраст 1.4 и для слабого зрения
+  // неразличима, а это границы полей ввода.
+  lineStrong: '#998F86',
 
   // Бренд
   plum: '#5A2050',
@@ -30,10 +36,17 @@ export const color = {
   lilacSoft: '#E6DDF2',
   sage: '#A6C1A0',
   sageSoft: '#DDE9D7',
-  sageDeep: '#4F7D4D',
+  // Затемнён с #4F7D4D: на sageSoft давал 3.8, теперь 4.6.
+  sageDeep: '#466F44',
   sky: '#A3BBDB',
   skySoft: '#DDE6F3',
+  // rose остаётся для заливок и акцентов, но текстом и фоном под белым
+  // текстом не годится: на бумаге давал 2.9, под белым текстом 3.2.
   rose: '#D46E7B',
+  // Для текста на светлом фоне.
+  roseText: '#A1545E',
+  // Для заливки под белым текстом — карточка вызова скорой.
+  roseDeep: '#AB5963',
 } as const;
 
 /** Смысловые роли: дозы, статусы, разделы. */
@@ -51,7 +64,7 @@ export const semantic = {
   braceletSoft: color.peachSoft,
   family: color.blush,
   familySoft: color.blushSoft,
-  danger: color.rose,
+  danger: color.roseDeep,
 } as const;
 
 export const radius = { sm: 12, md: 18, lg: 26, xl: 34, pill: 999 } as const;
@@ -86,8 +99,15 @@ export const typeScale = {
 
 export type TypeKey = keyof typeof typeScale;
 
-/** Множители настройки размера текста. */
-export const textSizeFactor = { normal: 1, large: 1.15, huge: 1.3 } as const;
+/**
+ * Множители размера текста.
+ *
+ * Верхняя ступень намеренно большая: 1.3 для слабовидящего человека —
+ * это почти ничего. На 1.8 основной текст становится 32pt, и разметка
+ * обязана это выдержать, поэтому фиксированных высот и обрезки строк
+ * в компонентах нет.
+ */
+export const textSizeFactor = { normal: 1, large: 1.2, huge: 1.45, max: 1.8 } as const;
 export type TextSize = keyof typeof textSizeFactor;
 
 export const shadow = {

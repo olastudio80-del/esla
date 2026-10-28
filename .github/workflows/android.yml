@@ -11,6 +11,12 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  # Нужно, чтобы упавшая сборка сама завела issue с текстом ошибки:
+  # логи прогона лежат во внешнем хранилище, недоступном из среды разработки.
+  issues: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -50,7 +56,26 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          set -o pipefail
+          ./gradlew assembleRelease --no-daemon 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+
+      - name: Завести issue с ошибкой сборки
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "Сборка APK упала на прогоне ${{ github.run_number }}."
+            echo
+            echo "Последние строки вывода Gradle:"
+            echo
+            echo '```'
+            tail -150 "$RUNNER_TEMP/gradle.log" 2>/dev/null || echo "(вывод Gradle не сохранился)"
+            echo '```'
+          } > "$RUNNER_TEMP/issue.md"
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "Сборка APK упала (прогон ${{ github.run_number }})" \
+            --body-file "$RUNNER_TEMP/issue.md"
 
       - name: Выложить APK
         uses: actions/upload-artifact@v4
