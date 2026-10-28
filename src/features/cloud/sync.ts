@@ -80,7 +80,7 @@ export async function ensureProfile(
   if (!userId) return false;
 
   const { error } = await supabase
-    .from('profiles')
+    .from('esla_profiles')
     .upsert({ id: userId, role, display_name: displayName, updated_at: new Date().toISOString() });
 
   if (error) {
@@ -95,7 +95,7 @@ export async function refreshInviteCode(): Promise<{ code: string; expiresAt: st
   if (!supabase) return null;
   if (!(await ensureSession())) return null;
 
-  const { data, error } = await supabase.rpc('refresh_invite_code');
+  const { data, error } = await supabase.rpc('esla_refresh_invite_code');
   if (error || !data?.[0]) {
     console.warn('[esla] код приглашения не выдан', error?.message);
     return null;
@@ -111,7 +111,7 @@ export async function claimInvite(
   if (!supabase) return { ok: false, error: 'not-configured' };
   if (!(await ensureSession())) return { ok: false, error: 'no-session' };
 
-  const { data, error } = await supabase.rpc('claim_invite', { code, relation });
+  const { data, error } = await supabase.rpc('esla_claim_invite', { code, relation });
   if (error) {
     // Неверный или просроченный код — обычная ситуация, а не сбой.
     const notFound = error.message.includes('invite_not_found');
@@ -131,7 +131,7 @@ export async function pushPatientState(vitals: HealthSnapshot | null): Promise<v
     await pushAlarms(userId);
     if (vitals) await pushVitals(userId, vitals);
     // Отметка «был на связи» — даже если отправлять было нечего.
-    await supabase.rpc('touch_last_seen');
+    await supabase.rpc('esla_touch_last_seen');
   } catch (error) {
     console.warn('[esla] не удалось отправить состояние', error);
   }
@@ -157,7 +157,7 @@ async function pushDoses(userId: string): Promise<void> {
     updated_at: new Date().toISOString(),
   }));
 
-  const { error } = await supabase.from('shared_doses').upsert(rows, {
+  const { error } = await supabase.from('esla_shared_doses').upsert(rows, {
     onConflict: 'patient_id,local_id',
   });
   if (error) throw error;
@@ -170,7 +170,7 @@ async function pushAlarms(userId: string): Promise<void> {
   const alarms = await unsyncedAlarms();
   if (alarms.length === 0) return;
 
-  const { error } = await supabase.from('shared_alarms').upsert(
+  const { error } = await supabase.from('esla_shared_alarms').upsert(
     alarms.map((alarm) => ({
       patient_id: userId,
       local_id: alarm.id,
@@ -187,7 +187,7 @@ async function pushAlarms(userId: string): Promise<void> {
 
 async function pushVitals(userId: string, vitals: HealthSnapshot): Promise<void> {
   if (!supabase) return;
-  const { error } = await supabase.from('shared_vitals').upsert({
+  const { error } = await supabase.from('esla_shared_vitals').upsert({
     patient_id: userId,
     heart_rate: vitals.heartRate?.value ?? null,
     heart_rate_at: vitals.heartRate ? parseLocalISO(vitals.heartRate.measuredAt).toISOString() : null,
@@ -206,34 +206,57 @@ export async function listPatients(): Promise<Patient[]> {
   const userId = await ensureSession();
   if (!userId) return [];
 
-  const { data, error } = await supabase
-    .from('links')
-    .select('relation, patient:patient_id (id, display_name, last_seen_at)')
+  // Два запроса вместо связанной выборки: у представлений нет внешних
+  // ключей, и выводить связь автоматически по ним нельзя.
+  const { data: links, error: linksError } = await supabase
+    .from('esla_links')
+    .select('patient_id, relation')
     .eq('relative_id', userId);
 
-  if (error) {
-    console.warn('[esla] список родителей не получен', error.message);
+  if (linksError) {
+    console.warn('[esla] список родителей не получен', linksError.message);
+    return [];
+  }
+  if (!links || links.length === 0) return [];
+
+  const ids = links.map((row) => row.patient_id as string);
+  const { data: profiles, error: profilesError } = await supabase
+    .from('esla_profiles')
+    .select('id, display_name, last_seen_at')
+    .in('id', ids);
+
+  if (profilesError) {
+    console.warn('[esla] профили родителей не получены', profilesError.message);
     return [];
   }
 
-  type Row = {
-    relation: string | null;
-    patient: { id: string; display_name: string | null; last_seen_at: string | null } | null;
-  };
-  return (data as unknown as Row[])
-    .filter((row) => row.patient !== null)
-    .map((row) => ({
-      id: row.patient!.id,
-      name: row.patient!.display_name,
-      relation: row.relation,
-      lastSeenAt: row.patient!.last_seen_at,
-    }));
+  const byId = new Map(
+    (profiles ?? []).map((row) => [
+      row.id as string,
+      {
+        name: row.display_name as string | null,
+        lastSeenAt: row.last_seen_at as string | null,
+      },
+    ]),
+  );
+
+  return links
+    .filter((row) => byId.has(row.patient_id as string))
+    .map((row) => {
+      const profile = byId.get(row.patient_id as string)!;
+      return {
+        id: row.patient_id as string,
+        name: profile.name,
+        relation: row.relation as string | null,
+        lastSeenAt: profile.lastSeenAt,
+      };
+    });
 }
 
 export async function fetchPatientDoses(patientId: string, sinceISO: string): Promise<PatientDose[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
-    .from('shared_doses')
+    .from('esla_shared_doses')
     .select('local_id, medication_name, dosage, planned_at, status')
     .eq('patient_id', patientId)
     .gte('planned_at', sinceISO)
@@ -255,7 +278,7 @@ export async function fetchPatientDoses(patientId: string, sinceISO: string): Pr
 export async function fetchPatientVitals(patientId: string): Promise<PatientVitals | null> {
   if (!supabase) return null;
   const { data, error } = await supabase
-    .from('shared_vitals')
+    .from('esla_shared_vitals')
     .select('*')
     .eq('patient_id', patientId)
     .maybeSingle();
@@ -274,7 +297,7 @@ export async function fetchPatientVitals(patientId: string): Promise<PatientVita
 export async function fetchPatientAlarms(patientId: string): Promise<PatientAlarm[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
-    .from('shared_alarms')
+    .from('esla_shared_alarms')
     .select('id, symptoms, note, created_at, seen_at')
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false })
@@ -296,7 +319,7 @@ export async function unlinkPatient(patientId: string): Promise<boolean> {
   const userId = await ensureSession();
   if (!userId) return false;
   const { error } = await supabase
-    .from('links')
+    .from('esla_links')
     .delete()
     .eq('patient_id', patientId)
     .eq('relative_id', userId);

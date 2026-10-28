@@ -27,7 +27,9 @@ const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra.publis
 
 export const cloudConfigured = Boolean(url && publishableKey);
 
-// Тип выводится из настроек: схема здесь esla, а не public.
+// Таблицы живут в схеме esla, а наружу смотрят представления esla_* в public:
+// схема public открыта для API всегда, а открытие своей схемы требует
+// настройки в панели, которую нельзя проверить из среды разработки.
 export const supabase = cloudConfigured
   ? createClient(url as string, publishableKey as string, {
       auth: {
@@ -38,6 +40,5 @@ export const supabase = cloudConfigured
         // Ссылок с токенами в мобильном приложении нет.
         detectSessionInUrl: false,
       },
-      db: { schema: 'esla' },
     })
   : null;
