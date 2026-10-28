@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 
 import { Icon, type IconName } from '@/components/ui/Icon';
-import { useT } from '@/i18n';
+import { useT, useType } from '@/i18n';
 import { color, font } from '@/theme/tokens';
 import type { TKey } from '@/i18n';
 
@@ -19,6 +19,10 @@ const TABS: { name: string; icon: IconName; label: TKey }[] = [
 
 export default function TabsLayout() {
   const { t } = useT();
+  const type = useType();
+  // Подписи вкладок растут вместе с настройкой размера текста, а высота
+  // панели — вместе с ними, иначе подпись обрезается снизу.
+  const labelSize = Math.round(type('caption') * 0.8);
   return (
     <Tabs
       screenOptions={{
@@ -29,11 +33,11 @@ export default function TabsLayout() {
           backgroundColor: color.card,
           borderTopColor: color.line,
           // Высота с запасом: мишень для нажатия должна быть крупной.
-          height: 76,
+          height: 56 + labelSize * 1.8,
           paddingTop: 8,
           paddingBottom: 10,
         },
-        tabBarLabelStyle: { fontFamily: font.bodySemi, fontSize: 12 },
+        tabBarLabelStyle: { fontFamily: font.bodySemi, fontSize: labelSize },
       }}
     >
       {TABS.map((tab) => (

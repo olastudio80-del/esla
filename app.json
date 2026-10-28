@@ -42,6 +42,14 @@
     "plugins": [
       "expo-router",
       [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#F7EEE4",

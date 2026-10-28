@@ -223,11 +223,13 @@ function TodayList({
               opacity: pressed && !done ? 0.85 : 1,
             })}
           >
-            <Txt variant="bodyLarge" weight="display" style={{ minWidth: 64 }}>
+            {/* Без фиксированной ширины: на крупном шрифте «14:00» в неё не влезает. */}
+            <Txt variant="bodyLarge" weight="display">
               {timeOf(dose.planned_at)}
             </Txt>
             <View style={{ flex: 1 }}>
-              <Txt weight="semibold" numberOfLines={1}>
+              {/* Две строки: длинные названия на крупном шрифте не обрезаются. */}
+              <Txt weight="semibold" numberOfLines={2}>
                 {dose.name}
               </Txt>
               {dose.dosage ? (

@@ -206,7 +206,7 @@ export default function HistoryScreen() {
                   <Icon name={doc.mime?.startsWith('image/') ? 'camera' : 'file'} size={20} color={color.ink} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Txt weight="semibold" numberOfLines={1}>
+                  <Txt weight="semibold" numberOfLines={2}>
                     {doc.title}
                   </Txt>
                   <Txt variant="caption" color={color.inkSoft}>

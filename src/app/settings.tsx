@@ -35,6 +35,7 @@ export default function SettingsScreen() {
     { value: 'normal', label: t('textSizeNormal') },
     { value: 'large', label: t('textSizeLarge') },
     { value: 'huge', label: t('textSizeHuge') },
+    { value: 'max', label: t('textSizeMax') },
   ];
 
   return (
@@ -78,6 +79,24 @@ export default function SettingsScreen() {
               tint={color.peachSoft}
             />
           ))}
+        </View>
+      </View>
+
+      <View style={{ gap: space(2) }}>
+        <Caption>{t('boldText')}</Caption>
+        <View style={{ flexDirection: 'row', gap: space(2) }}>
+          <Pill
+            label={t('boldTextOff')}
+            selected={!prefs.boldText}
+            onPress={() => set('boldText', false)}
+            tint={color.peachSoft}
+          />
+          <Pill
+            label={t('boldTextOn')}
+            selected={prefs.boldText}
+            onPress={() => set('boldText', true)}
+            tint={color.peachSoft}
+          />
         </View>
       </View>
 

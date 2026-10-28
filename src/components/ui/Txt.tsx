@@ -1,6 +1,7 @@
 import { Text as RNText, type StyleProp, type TextProps, type TextStyle } from 'react-native';
 
 import { useType } from '@/i18n';
+import { usePrefs } from '@/store/prefs';
 import { color as palette, font, type TypeKey } from '@/theme/tokens';
 
 type Weight = 'regular' | 'medium' | 'semibold' | 'bold' | 'display' | 'displayExtra' | 'logo';
@@ -13,6 +14,17 @@ const FAMILY: Record<Weight, string> = {
   display: font.display,
   displayExtra: font.displayExtra,
   logo: font.logo,
+};
+
+/** При включённом жирном тексте каждое начертание становится на ступень тяжелее. */
+const BOLDER: Record<Weight, Weight> = {
+  regular: 'semibold',
+  medium: 'semibold',
+  semibold: 'bold',
+  bold: 'bold',
+  display: 'displayExtra',
+  displayExtra: 'displayExtra',
+  logo: 'logo',
 };
 
 /** Межстрочное расстояние: заголовки плотнее, текст свободнее для чтения. */
@@ -44,13 +56,15 @@ export type TxtProps = TextProps & {
  */
 export function Txt({
   variant = 'body',
-  weight = 'regular',
+  weight: requestedWeight = 'regular',
   color = palette.ink,
   align,
   style,
   ...rest
 }: TxtProps) {
   const type = useType();
+  const { prefs } = usePrefs();
+  const weight = prefs.boldText ? BOLDER[requestedWeight] : requestedWeight;
   const size = type(variant);
   return (
     <RNText

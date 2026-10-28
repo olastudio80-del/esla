@@ -29,6 +29,12 @@ export type Prefs = {
   missedAfterMinutes: number;
   /** Озвучивать ответы помощника голосом. */
   voiceEnabled: boolean;
+  /**
+   * Более жирное начертание текста. Для слабого зрения это работает не хуже
+   * увеличения размера: толще штрих — выше различимость букв, а разметка
+   * при этом не разъезжается.
+   */
+  boldText: boolean;
   onboarded: boolean;
 };
 
@@ -50,6 +56,7 @@ const fallback: Prefs = {
   snoozeMinutes: 10,
   missedAfterMinutes: 30,
   voiceEnabled: true,
+  boldText: false,
   onboarded: false,
 };
 
