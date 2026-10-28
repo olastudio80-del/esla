@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -43,6 +43,12 @@ function AppShell() {
     if (ready) SplashScreen.hideAsync().catch(() => {});
   }, [ready]);
 
+  useEffect(() => {
+    // Роль определяет, какие вкладки человек увидит, поэтому спрашиваем
+    // до первого экрана, а не после.
+    if (ready && !prefs.onboarded) router.replace('/welcome');
+  }, [ready, prefs.onboarded]);
+
   if (!ready) return <View style={{ flex: 1, backgroundColor: color.paper }} />;
 
   return (
@@ -58,6 +64,8 @@ function AppShell() {
         <Stack.Screen name="medicine/add" options={{ presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
         <Stack.Screen name="voice-check" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="welcome" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="medical-card" />
       </Stack>
     </>
   );

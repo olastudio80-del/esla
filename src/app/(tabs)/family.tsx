@@ -1,128 +1,39 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Linking, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, View } from 'react-native';
 
+import { ECGLine } from '@/components/motion/ECGLine';
 import { Button, Gap, Pill } from '@/components/ui/Button';
-import { Caption, Card, SectionTitle } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { Txt } from '@/components/ui/Txt';
-import { dayProgress, type DayProgress } from '@/db/doses';
 import { symptomById } from '@/data/symptoms';
 import { getAllPhones, setPhone } from '@/features/cloud/contacts';
 import { useFamily, type PatientView } from '@/hooks/useFamily';
-import { useHealth } from '@/hooks/useHealth';
 import { useT } from '@/i18n';
-import { localISO, timeOf } from '@/lib/date';
+import { localISO, minutesBetween, timeOf } from '@/lib/date';
 import { formatCount, useAgo, useDuration } from '@/lib/format';
 import { color, radius, semantic, space } from '@/theme/tokens';
 
 /**
- * Раздел «Ota-onam» из презентации.
+ * «Holat» — главный экран того, кто следит за родителями.
  *
- * У экрана две стороны: на телефоне родителя он показывает код приглашения,
- * на телефоне ребёнка — состояние родителей. Какая сторона нужна, человек
- * выбирает сам; переключатель остаётся на виду, потому что ошибиться
- * при первом запуске легко.
+ * Порядок блоков повторяет макет проекта и отвечает на вопросы в том
+ * порядке, в каком их задаёт человек, открывший приложение: всё ли в
+ * порядке (тревога), как он себя чувствует (пульс, сон, шаги), принял ли
+ * лекарства (чипы за день).
+ *
+ * Тревога стоит первой и занимает всю ширину: ради неё приложение и
+ * открывают, и искать её глазами человек не должен.
  */
 export default function FamilyScreen() {
   const { t } = useT();
   const family = useFamily();
-
-  return (
-    <Screen>
-      <SectionTitle title={t('familyTitle')} />
-
-      <View style={{ gap: space(2) }}>
-        <Caption>{t('familyRoleQuestion')}</Caption>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space(2) }}>
-          <Pill
-            label={t('roleIAmPatient')}
-            selected={family.role === 'patient'}
-            onPress={() => family.setRole('patient')}
-            tint={color.blushSoft}
-          />
-          <Pill
-            label={t('roleIAmRelative')}
-            selected={family.role === 'relative'}
-            onPress={() => family.setRole('relative')}
-            tint={color.blushSoft}
-          />
-        </View>
-      </View>
-
-      {!family.configured ? (
-        <Card>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
-            <Icon name="users" size={24} color={color.inkSoft} />
-            <Txt weight="semibold" style={{ flex: 1 }}>
-              {t('cloudOff')}
-            </Txt>
-          </View>
-          <Txt variant="caption" color={color.inkSoft} style={{ marginTop: space(2) }}>
-            {t('cloudOffHint')}
-          </Txt>
-        </Card>
-      ) : family.role === 'patient' ? (
-        <PatientSide family={family} />
-      ) : (
-        <RelativeSide family={family} />
-      )}
-    </Screen>
-  );
-}
-
-/** Сторона родителя: код для детей и собственные показатели. */
-function PatientSide({ family }: { family: ReturnType<typeof useFamily> }) {
-  const { t } = useT();
-
-  return (
-    <>
-      <Card tint={color.blushSoft}>
-        <Txt variant="bodyLarge" weight="display">
-          {t('shareCodeTitle')}
-        </Txt>
-        <Txt variant="caption" color={color.inkSoft} style={{ marginTop: space(2) }}>
-          {t('shareCodeHint')}
-        </Txt>
-
-        {family.invite ? (
-          <>
-            <Txt
-              variant="hero"
-              weight="displayExtra"
-              align="center"
-              style={{ marginTop: space(4), letterSpacing: 6 }}
-            >
-              {family.invite.code}
-            </Txt>
-            <Txt variant="caption" color={color.inkSoft} align="center" style={{ marginTop: space(2) }}>
-              {t('codeExpires', { time: timeOf(localISO(new Date(family.invite.expiresAt))) })}
-            </Txt>
-          </>
-        ) : null}
-
-        <Gap size={4} />
-        <Button
-          label={family.invite ? t('newCode') : t('inviteCode')}
-          icon="share"
-          onPress={() => void family.createInvite()}
-          busy={family.busy}
-          large
-        />
-      </Card>
-
-      <OwnVitals />
-    </>
-  );
-}
-
-/** Сторона ребёнка: список родителей и ввод кода. */
-function RelativeSide({ family }: { family: ReturnType<typeof useFamily> }) {
-  const { t } = useT();
+  const [adding, setAdding] = useState(false);
   const [code, setCode] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [codeError, setCodeError] = useState(false);
   const [phones, setPhones] = useState<Record<string, string>>({});
 
   useFocusEffect(
@@ -131,29 +42,87 @@ function RelativeSide({ family }: { family: ReturnType<typeof useFamily> }) {
     }, []),
   );
 
+  const view: PatientView | null = family.selected;
+
   return (
-    <>
-      {family.views.length === 0 && !family.loading ? (
-        <Card>
-          <Txt variant="subtitle" weight="display">
-            {t('familyEmpty')}
-          </Txt>
-          <Txt variant="body" color={color.inkSoft} style={{ marginTop: space(2) }}>
-            {t('familyEmptyHint')}
-          </Txt>
+    <Screen>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Txt variant="title" weight="display">
+          {t('familyTitle')}
+        </Txt>
+        <Pill label={`+ ${t('addRelative')}`} onPress={() => setAdding((v) => !v)} tint={color.card} />
+      </View>
+
+      {family.views.length > 0 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={{ flexDirection: 'row', gap: space(2) }}>
+            {family.views.map((item) => (
+              <PatientChip
+                key={item.patient.id}
+                name={item.patient.name ?? t('roleRelative')}
+                selected={item.patient.id === view?.patient.id}
+                alarm={item.unseenAlarm !== null || item.missedToday.length > 0}
+                onPress={() => family.select(item.patient.id)}
+              />
+            ))}
+          </View>
+        </ScrollView>
+      ) : null}
+
+      {adding || family.views.length === 0 ? (
+        <Card tint={color.app}>
+          <Input
+            label={t('enterCodeTitle')}
+            value={code}
+            onChangeText={(value) => {
+              setCode(value.toUpperCase().replace(/\s/g, ''));
+              setCodeError(false);
+            }}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            maxLength={6}
+            placeholder="ABC123"
+            style={{ letterSpacing: 4 }}
+          />
+          {codeError ? (
+            <Txt variant="caption" color={color.roseText} style={{ marginTop: space(2) }}>
+              {t('codeWrong')}
+            </Txt>
+          ) : null}
+          {family.views.length === 0 && !adding ? (
+            <Txt variant="caption" color={color.inkSoft} style={{ marginTop: space(2) }}>
+              {t('familyEmptyHint')}
+            </Txt>
+          ) : null}
+          <Gap size={3} />
+          <Button
+            label={t('addRelative')}
+            icon="plus"
+            onPress={async () => {
+              const result = await family.addPatient(code, null);
+              if (result.ok) {
+                setCode('');
+                setAdding(false);
+              } else {
+                setCodeError(true);
+              }
+            }}
+            disabled={code.length < 6}
+            busy={family.busy}
+            large
+          />
         </Card>
       ) : null}
 
-      {family.views.map((view) => (
-        <PatientCard
-          key={view.patient.id}
+      {view ? (
+        <PatientStatus
           view={view}
           phone={phones[view.patient.id] ?? null}
           onSavePhone={async (value) => {
             await setPhone(view.patient.id, value);
             setPhones(await getAllPhones());
           }}
-          onRemove={() => {
+          onRemove={() =>
             Alert.alert(
               t('unlinkConfirm', { name: view.patient.name ?? t('roleRelative') }),
               undefined,
@@ -165,55 +134,64 @@ function RelativeSide({ family }: { family: ReturnType<typeof useFamily> }) {
                   onPress: () => void family.removePatient(view.patient.id),
                 },
               ],
-            );
-          }}
+            )
+          }
         />
-      ))}
-
-      <Card tint={color.app}>
-        <Input
-          label={t('enterCodeTitle')}
-          value={code}
-          onChangeText={(value) => {
-            // Код диктуют вслух: регистр и пробелы не должны мешать.
-            setCode(value.toUpperCase().replace(/\s/g, ''));
-            setError(null);
-          }}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          maxLength={6}
-          placeholder="ABC123"
-          style={{ letterSpacing: 4 }}
-        />
-        {error ? (
-          <Txt variant="caption" color={color.roseText} style={{ marginTop: space(2) }}>
-            {error}
-          </Txt>
-        ) : null}
-        <Gap size={3} />
-        <Button
-          label={t('addRelative')}
-          icon="plus"
-          onPress={async () => {
-            const result = await family.addPatient(code, null);
-            if (result.ok) {
-              setCode('');
-              setError(null);
-            } else {
-              setError(t('codeWrong'));
-            }
-          }}
-          disabled={code.length < 6}
-          busy={family.busy}
-          large
-        />
-      </Card>
-    </>
+      ) : null}
+    </Screen>
   );
 }
 
-/** Карточка одного родителя: тревога, показатели, приём лекарств. */
-function PatientCard({
+/** Кружок с инициалами и имя — переключение между родителями. */
+function PatientChip({
+  name,
+  selected,
+  alarm,
+  onPress,
+}: {
+  name: string;
+  selected: boolean;
+  alarm: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: space(2),
+        paddingLeft: space(1),
+        paddingRight: space(4),
+        paddingVertical: space(1),
+        borderRadius: radius.pill,
+        backgroundColor: selected ? color.ink : color.card,
+      }}
+    >
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: alarm ? color.rose : color.peach,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Txt variant="caption" weight="display" color={alarm ? color.card : color.ink}>
+          {initials(name)}
+        </Txt>
+      </View>
+      <Txt weight="semibold" color={selected ? color.card : color.ink}>
+        {name}
+      </Txt>
+    </Pressable>
+  );
+}
+
+function PatientStatus({
   view,
   phone,
   onSavePhone,
@@ -228,136 +206,52 @@ function PatientCard({
   const ago = useAgo();
   const duration = useDuration();
   const [editingPhone, setEditingPhone] = useState(false);
-  const [draft, setDraft] = useState(phone ?? '');
+  const [draft, setDraft] = useState('');
+  const [reminded, setReminded] = useState(false);
 
   const name = view.patient.name ?? t('roleRelative');
-  // Всё, что зависит от текущего времени, посчитано при загрузке данных.
-  const { silent, todayDoses, takenToday: taken, missedToday: missed, unseenAlarm } = view;
+  const missed = view.missedToday[0];
+  const alarm = view.unseenAlarm;
 
   return (
-    <Card>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
-        <View
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 24,
-            backgroundColor: color.peach,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Icon name="users" size={22} color={color.ink} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Txt variant="bodyLarge" weight="bold">
-            {name}
-          </Txt>
-          {/* Когда телефон родителя последний раз выходил на связь.
-              Молчание — сигнал сам по себе, поэтому стоит рядом с именем. */}
-          <Txt variant="caption" color={silent ? color.roseText : color.inkSoft}>
-            {view.patient.lastSeenAt
-              ? t('lastSeen', { ago: ago(toLocal(view.patient.lastSeenAt)) })
-              : t('neverSeen')}
-          </Txt>
-        </View>
-      </View>
-
-      {unseenAlarm ? (
-        <View
-          style={{
-            marginTop: space(4),
-            padding: space(4),
-            borderRadius: radius.lg,
-            backgroundColor: semantic.danger,
-            gap: space(2),
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space(2) }}>
-            <Icon name="alert" size={22} color={color.card} strokeWidth={2.4} />
-            <Txt weight="bold" color={color.card} style={{ flex: 1 }}>
-              {t('alarmFromPatient', { name })}
-            </Txt>
-          </View>
-          <Txt variant="caption" color={color.card}>
-            {unseenAlarm.symptoms
-              .map((id) => {
-                const symptom = symptomById(id);
-                return symptom ? (lang === 'ru' ? symptom.ru : symptom.uz) : id;
-              })
-              .join(', ')}
-          </Txt>
-        </View>
+    <>
+      {/* Тревожный симптом важнее пропущенной дозы — показываем его первым. */}
+      {alarm ? (
+        <AlertCard
+          title={t('alarmFromPatient', { name })}
+          detail={alarm.symptoms
+            .map((id) => {
+              const symptom = symptomById(id);
+              return symptom ? (lang === 'ru' ? symptom.ru : symptom.uz) : id;
+            })
+            .join(', ')}
+          phone={phone}
+          onAddPhone={() => setEditingPhone(true)}
+          onRemind={() => setReminded(true)}
+          reminded={reminded}
+        />
+      ) : missed ? (
+        <AlertCard
+          title={t('missedDoseAlert', { name, time: timeOf(localTime(missed.plannedAt)) })}
+          detail={`${missed.name}${missed.dosage ? ` ${missed.dosage}` : ''} · ${t('minutesPassed', {
+            n: Math.max(1, minutesBetween(localTime(missed.plannedAt), localISO())),
+          })}`}
+          phone={phone}
+          onAddPhone={() => setEditingPhone(true)}
+          onRemind={() => setReminded(true)}
+          reminded={reminded}
+        />
       ) : null}
 
-      {missed.length > 0 ? (
-        <View
-          style={{
-            marginTop: space(4),
-            padding: space(4),
-            borderRadius: radius.lg,
-            backgroundColor: color.peachSoft,
-          }}
-        >
-          <Txt weight="semibold">{t('missedToday', { n: missed.length })}</Txt>
-          {missed.map((dose) => (
-            <Txt key={dose.localId} variant="caption" color={color.inkSoft} style={{ marginTop: space(1) }}>
-              {timeOf(dose.plannedAt.replace('Z', '').slice(0, 19))} · {dose.name}
-            </Txt>
-          ))}
-        </View>
-      ) : null}
-
-      <View style={{ flexDirection: 'row', gap: space(2), marginTop: space(4) }}>
-        <Tile
-          icon="heart"
-          label={t('heartRate')}
-          value={view.vitals?.heartRate ? `${Math.round(view.vitals.heartRate)}` : '—'}
-          hint={view.vitals?.heartRateAt ? ago(toLocal(view.vitals.heartRateAt)) : null}
-        />
-        <Tile
-          icon="moon"
-          label={t('sleep')}
-          value={view.vitals?.sleepMinutes ? duration(view.vitals.sleepMinutes) : '—'}
-          hint={view.vitals?.sleepAt ? ago(toLocal(view.vitals.sleepAt)) : null}
-        />
-        <Tile
-          icon="activity"
-          label={t('steps')}
-          value={view.vitals?.steps ? formatCount(view.vitals.steps) : '—'}
-          hint={view.vitals?.stepsAt ? ago(toLocal(view.vitals.stepsAt)) : null}
-        />
-      </View>
-
-      <View style={{ marginTop: space(4) }}>
-        <Txt weight="semibold">
-          {todayDoses.length > 0
-            ? t('takenToday', { taken, total: todayDoses.length })
-            : t('noPatientData')}
-        </Txt>
-        {todayDoses.length === 0 ? (
-          <Txt variant="caption" color={color.inkSoft} style={{ marginTop: space(1) }}>
-            {t('noPatientDataHint')}
-          </Txt>
-        ) : null}
-      </View>
-
-      <Gap size={4} />
-      {phone ? (
-        <Button
-          label={t('callNow')}
-          icon="call"
-          onPress={() => void Linking.openURL(`tel:${phone}`)}
-          large
-        />
-      ) : editingPhone ? (
-        <>
+      {editingPhone && !phone ? (
+        <Card tint={color.app}>
           <Input
             label={t('patientPhone')}
             value={draft}
             onChangeText={setDraft}
             keyboardType="phone-pad"
             placeholder="+998 __ ___ __ __"
+            autoFocus
           />
           <Txt variant="caption" color={color.inkSoft} style={{ marginTop: space(2) }}>
             {t('patientPhoneHint')}
@@ -371,108 +265,186 @@ function PatientCard({
             }}
             disabled={draft.trim().length < 5}
           />
-        </>
-      ) : (
-        <Button label={t('patientPhone')} icon="call" variant="soft" onPress={() => setEditingPhone(true)} />
-      )}
-
-      <Button label={t('unlink')} variant="ghost" onPress={onRemove} />
-    </Card>
-  );
-}
-
-/** Метка времени из облака приходит в UTC, а показываем местное. */
-function toLocal(iso: string): string {
-  return localISO(new Date(iso));
-}
-
-function Tile({
-  icon,
-  label,
-  value,
-  hint,
-}: {
-  icon: IconName;
-  label: string;
-  value: string;
-  hint: string | null;
-}) {
-  return (
-    <View style={{ flex: 1, padding: space(3), borderRadius: radius.md, backgroundColor: color.app }}>
-      <Icon name={icon} size={18} color={color.inkSoft} />
-      <Txt variant="caption" color={color.inkSoft} style={{ marginTop: space(1) }}>
-        {label}
-      </Txt>
-      <Txt variant="bodyLarge" weight="displayExtra" style={{ marginTop: space(1) }}>
-        {value}
-      </Txt>
-      {hint ? (
-        <Txt variant="caption" color={color.inkSoft}>
-          {hint}
-        </Txt>
+        </Card>
       ) : null}
-    </View>
-  );
-}
 
-/** Собственные показатели — их же увидит ребёнок. */
-function OwnVitals() {
-  const { t } = useT();
-  const bracelet = useHealth();
-  const ago = useAgo();
-  const duration = useDuration();
-  const [progress, setProgress] = useState<DayProgress>({ taken: 0, total: 0 });
+      {/* Пульс с кардиограммой — главный показатель на экране. */}
+      <Card>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(2) }}>
+            <Icon name="heart" size={20} color={color.rose} filled />
+            <Txt weight="semibold" color={color.inkSoft}>
+              {t('heartRate')}
+            </Txt>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space(1) }}>
+            <Txt variant="headline" weight="displayExtra">
+              {view.vitals?.heartRate ? Math.round(view.vitals.heartRate) : '—'}
+            </Txt>
+            <Txt variant="caption" color={color.inkSoft}>
+              {t('bpm')}
+            </Txt>
+          </View>
+        </View>
+        <Gap size={2} />
+        <ECGLine />
+        {view.vitals?.heartRateAt ? (
+          <Txt variant="caption" color={color.inkSoft}>
+            {ago(localTime(view.vitals.heartRateAt))}
+          </Txt>
+        ) : null}
+      </Card>
 
-  useFocusEffect(
-    useCallback(() => {
-      dayProgress()
-        .then(setProgress)
-        .catch((error) => console.warn('[esla] прогресс дня не получен', error));
-    }, []),
-  );
-
-  const { heartRate, steps, sleepMinutes } = bracelet.snapshot;
-
-  return (
-    <View style={{ gap: space(2) }}>
-      <Caption>{t('myData')}</Caption>
       <View style={{ flexDirection: 'row', gap: space(2) }}>
-        <Tile
-          icon="heart"
-          label={t('heartRate')}
-          value={heartRate ? `${Math.round(heartRate.value)}` : '—'}
-          hint={heartRate ? ago(heartRate.measuredAt) : null}
-        />
         <Tile
           icon="moon"
           label={t('sleep')}
-          value={sleepMinutes ? duration(sleepMinutes.value) : '—'}
-          hint={sleepMinutes ? ago(sleepMinutes.measuredAt) : null}
+          value={view.vitals?.sleepMinutes ? duration(view.vitals.sleepMinutes) : '—'}
         />
         <Tile
           icon="activity"
           label={t('steps')}
-          value={steps ? formatCount(steps.value) : '—'}
-          hint={steps ? ago(steps.measuredAt) : null}
+          value={view.vitals?.steps ? formatCount(view.vitals.steps) : '—'}
         />
       </View>
 
-      <Card tint={color.lilacSoft}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space(2) }}>
-          <Txt weight="semibold" style={{ flex: 1 }}>
-            {t('todayMedsProgress')}
-          </Txt>
+      <Card>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Txt weight="semibold">{t('todayMedsProgress')}</Txt>
           <Txt variant="subtitle" weight="displayExtra">
-            {progress.taken} / {progress.total}
+            {view.takenToday} / {view.todayDoses.length}
           </Txt>
         </View>
+
+        {view.todayDoses.length > 0 ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space(2), marginTop: space(3) }}>
+            {view.todayDoses.map((dose) => (
+              <DoseChip
+                key={dose.localId}
+                time={timeOf(localTime(dose.plannedAt))}
+                status={dose.status}
+              />
+            ))}
+          </View>
+        ) : (
+          <Txt variant="caption" color={color.inkSoft} style={{ marginTop: space(2) }}>
+            {t('noPatientDataHint')}
+          </Txt>
+        )}
       </Card>
 
-      {!bracelet.checking && !bracelet.hasData ? (
-        <Txt variant="caption" color={color.inkSoft}>
-          {t('braceletWorksWithoutHint')}
+      <Txt variant="caption" color={color.inkSoft} align="center">
+        {view.patient.lastSeenAt
+          ? t('lastSeen', { ago: ago(localTime(view.patient.lastSeenAt)) })
+          : t('neverSeen')}
+      </Txt>
+
+      <Button label={t('unlink')} variant="ghost" onPress={onRemove} />
+    </>
+  );
+}
+
+/** Карточка тревоги: одно крупное сообщение и два действия. */
+function AlertCard({
+  title,
+  detail,
+  phone,
+  onAddPhone,
+  onRemind,
+  reminded,
+}: {
+  title: string;
+  detail: string;
+  phone: string | null;
+  onAddPhone: () => void;
+  onRemind: () => void;
+  reminded: boolean;
+}) {
+  const { t } = useT();
+  return (
+    <Card tint={semantic.danger} raised>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space(3) }}>
+        <Icon name="bell" size={24} color={color.card} strokeWidth={2.4} />
+        <Txt variant="bodyLarge" weight="bold" color={color.card} style={{ flex: 1 }}>
+          {title}
         </Txt>
-      ) : null}
+      </View>
+      <Txt variant="caption" color={color.card} style={{ marginTop: space(2), opacity: 0.92 }}>
+        {detail}
+      </Txt>
+
+      <View style={{ flexDirection: 'row', gap: space(2), marginTop: space(4) }}>
+        <Button
+          label={t('callNow')}
+          icon="call"
+          variant="soft"
+          onPress={() => (phone ? void Linking.openURL(`tel:${phone}`) : onAddPhone())}
+          style={{ flex: 1 }}
+        />
+        <Button
+          label={reminded ? t('reminderSent') : t('remindAgain')}
+          variant="ghost"
+          onPress={onRemind}
+          disabled={reminded}
+          style={{ flex: 1 }}
+        />
+      </View>
+    </Card>
+  );
+}
+
+/** Чип приёма: время и знак — принято, пропущено или ещё впереди. */
+function DoseChip({ time, status }: { time: string; status: string }) {
+  const look =
+    status === 'taken'
+      ? { bg: color.sageSoft, fg: color.sageDeep, icon: 'check' as IconName }
+      : status === 'missed'
+        ? { bg: color.rose, fg: color.card, icon: 'x' as IconName }
+        : { bg: color.lilacSoft, fg: color.ink, icon: null };
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: space(1),
+        paddingHorizontal: space(3),
+        paddingVertical: space(2),
+        borderRadius: radius.sm,
+        backgroundColor: look.bg,
+      }}
+    >
+      {look.icon ? <Icon name={look.icon} size={15} color={look.fg} strokeWidth={3} /> : null}
+      <Txt weight="bold" color={look.fg}>
+        {time}
+      </Txt>
     </View>
   );
+}
+
+function Tile({ icon, label, value }: { icon: IconName; label: string; value: string }) {
+  return (
+    <Card style={{ flex: 1 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(2) }}>
+        <Icon name={icon} size={18} color={color.inkSoft} />
+        <Txt variant="caption" color={color.inkSoft}>
+          {label}
+        </Txt>
+      </View>
+      <Txt variant="subtitle" weight="displayExtra" style={{ marginTop: space(2) }}>
+        {value}
+      </Txt>
+    </Card>
+  );
+}
+
+/** Из облака время приходит в UTC, показываем местное. */
+function localTime(iso: string): string {
+  return localISO(new Date(iso));
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '—';
+  return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('');
 }

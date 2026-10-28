@@ -4,6 +4,7 @@ import {
   NO_VOICE,
   checkVoice,
   listenOnce,
+  requestVoicePermission,
   speak,
   stopListening,
   stopSpeaking,
@@ -13,6 +14,9 @@ import { matchSpoken } from '@/lib/text';
 import { usePrefs } from '@/store/prefs';
 
 export type VoiceState = 'idle' | 'speaking' | 'listening';
+
+/** Что с доступом к микрофону: ещё не спрашивали, дали или отказали. */
+export type MicPermission = 'unknown' | 'granted' | 'denied';
 
 /**
  * Голосовой вопрос: озвучить, выслушать, вернуть ответ.
@@ -27,6 +31,7 @@ export function useVoiceAsk() {
   const [capabilities, setCapabilities] = useState<VoiceCapabilities>(NO_VOICE);
   const [state, setState] = useState<VoiceState>('idle');
   const [partial, setPartial] = useState('');
+  const [permission, setPermission] = useState<MicPermission>('unknown');
   // Отменённый вопрос не должен продолжать говорить в уже закрытом экране.
   const cancelled = useRef(false);
 
@@ -61,6 +66,15 @@ export function useVoiceAsk() {
       cancelled.current = false;
       setPartial('');
 
+      // Разрешение на микрофон спрашиваем перед первым прослушиванием.
+      // Без него система молча отказывает, и человек видит, что «ничего
+      // не происходит», — а это выглядит как сломанное приложение.
+      if (permission !== 'granted') {
+        const granted = await requestVoicePermission();
+        setPermission(granted ? 'granted' : 'denied');
+        if (!granted) return null;
+      }
+
       if (question) {
         setState('speaking');
         await speak(question, prefs.lang);
@@ -81,7 +95,7 @@ export function useVoiceAsk() {
       if (cancelled.current || !result.ok) return null;
       return result.text;
     },
-    [enabled, prefs.lang, capabilities.offlineReady],
+    [enabled, prefs.lang, capabilities.offlineReady, permission],
   );
 
   /** Тот же вопрос, но ответ сопоставляется с ожидаемыми вариантами. */
@@ -97,5 +111,5 @@ export function useVoiceAsk() {
     [dictate],
   );
 
-  return { enabled, capabilities, state, partial, ask, dictate, cancel };
+  return { enabled, capabilities, permission, state, partial, ask, dictate, cancel };
 }

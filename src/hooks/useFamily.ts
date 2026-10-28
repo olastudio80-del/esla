@@ -35,7 +35,27 @@ export type PatientView = {
   /** Сутки без единой отправки — повод позвонить, а не ждать. */
   silent: boolean;
   unseenAlarm: PatientAlarm | null;
+  /**
+   * Лекарства родителя, собранные из присланных доз. Отдельно список
+   * лекарств не передаётся: дозы и так содержат название, дозировку и
+   * время, а лишнее поле в облаке — лишние данные о здоровье снаружи.
+   */
+  medicines: { name: string; dosage: string | null; times: string[] }[];
 };
+
+/** Собирает лекарства из доз: одно название — одна строка со всеми временами. */
+function collectMedicines(doses: PatientDose[]): PatientView['medicines'] {
+  const byName = new Map<string, { name: string; dosage: string | null; times: Set<string> }>();
+  for (const dose of doses) {
+    const key = `${dose.name}|${dose.dosage ?? ''}`;
+    const entry = byName.get(key) ?? { name: dose.name, dosage: dose.dosage, times: new Set() };
+    entry.times.add(dose.plannedAt.slice(11, 16));
+    byName.set(key, entry);
+  }
+  return [...byName.values()]
+    .map((m) => ({ name: m.name, dosage: m.dosage, times: [...m.times].sort() }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -60,6 +80,7 @@ function buildView(
     silent:
       !patient.lastSeenAt || now.getTime() - new Date(patient.lastSeenAt).getTime() > DAY_MS,
     unseenAlarm: alarms.find((alarm) => alarm.seenAt === null) ?? null,
+    medicines: collectMedicines(doses),
   };
 }
 
@@ -163,8 +184,19 @@ export function useFamily() {
     [set],
   );
 
+  // Выбранный родитель: сохранённый, а если его больше нет — первый.
+  const selected =
+    views.find((v) => v.patient.id === prefs.selectedPatientId) ?? views[0] ?? null;
+
+  const select = useCallback(
+    (patientId: string) => set('selectedPatientId', patientId),
+    [set],
+  );
+
   return {
     configured: cloudConfigured,
+    selected,
+    select,
     role: prefs.role,
     setRole,
     invite,

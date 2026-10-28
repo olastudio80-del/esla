@@ -17,7 +17,16 @@ export const uz = {
   loading: 'Yuklanmoqda…',
   notSet: 'Belgilanmagan',
 
+  welcomeTitle: 'esla ga xush kelibsiz',
+  welcomeHint: 'Ilova kim uchun? Buni keyin sozlamalardan oʻzgartirish mumkin.',
+  welcomeName: 'Ismingiz',
+  welcomeNameHint: 'Salomlashuvda shunday chaqiramiz.',
+  welcomeStart: 'Boshlash',
+  inviteSection: 'Farzandlarni qoʻshish',
+
   // Разделы
+  tabStatus: 'Holat',
+  tabCard: 'Karta',
   tabHome: 'Bosh ekran',
   tabMedicines: 'Dorilar',
   tabAssistant: 'Yordamchi',
@@ -151,6 +160,9 @@ export const uz = {
   voiceModeOff: 'Ovozli suhbat hozir ulanmagan',
   voiceModeOffHint: 'Ovozli suhbat uchun internet va sozlangan ulanish kerak. Shunga qaramay ahvolni savollar orqali yozib qoʻyish ishlaydi.',
 
+  micDenied: 'Mikrofonga ruxsat berilmagan',
+  micDeniedHint: 'Telefon sozlamalarida esla ilovasiga mikrofon ruxsatini bering. Savollarga tugmalar bilan ham javob berish mumkin — hammasi yoziladi.',
+  openPhoneSettings: 'Telefon sozlamalarini ochish',
   voiceTap: 'Gapirish uchun bosing',
   voiceSpeaking: 'Aytyapman…',
   voiceNotUnderstood: 'Tushunmadim — tugmani bosing yoki qayta ayting',
@@ -188,6 +200,12 @@ export const uz = {
   allergies: 'Allergiya',
   addAllergy: 'Allergiya qoʻshish',
   noAllergies: 'Allergiya qayd etilmagan',
+  medicalCardTitle: 'Tibbiy karta',
+  forDoctors: 'Shifokorlar uchun',
+  shareAsPdf: 'PDF qilib yuborish',
+  showCard: 'Tibbiy kartani koʻrsatish',
+  cardEmpty: 'Kartada hali maʼlumot yoʻq',
+  cardEmptyHint: 'Dorilar, tashxislar va allergiyani kiriting — ular shu yerda toʻplanadi.',
   emergencyTitle: 'Favqulodda holat',
   emergencyNote: 'Shifokorlar uchun tibbiy karta bir bosishda tayyorlanadi',
   prepareCard: 'Tibbiy kartani tayyorlash',
@@ -254,6 +272,12 @@ export const uz = {
 
   lastSeen: 'Oxirgi aloqa: {ago}',
   neverSeen: 'Hali aloqaga chiqmadi',
+
+  parentMedicines: '{name} dorilari',
+  parentCard: '{name} kartasi',
+  documentsStayOnPhone: 'Tahlillar va shifokor xulosalari ota-onangizning telefonida qoladi va bu yerga yuborilmaydi.',
+  noParentSelected: 'Avval ota-onangizni qoʻshing',
+  recentWellbeing: 'Soʻnggi ahvol yozuvlari',
 
   // Браслет и Health Connect
   braceletTitle: 'Fitnes-bilaguzuk',

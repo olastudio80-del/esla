@@ -3,7 +3,10 @@ import { useMemo } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 
 import { InteractionWarning } from '@/components/InteractionWarning';
+import { ParentMedicines } from '@/components/ParentMedicines';
 import { findInteractions } from '@/data/interactions';
+import { useFamily } from '@/hooks/useFamily';
+import { usePrefs } from '@/store/prefs';
 
 import { Button, Gap, IconButton } from '@/components/ui/Button';
 import { Card, SectionTitle } from '@/components/ui/Card';
@@ -18,6 +21,36 @@ import { useLabels } from '@/lib/labels';
 import { color, radius, space } from '@/theme/tokens';
 
 export default function MedicinesScreen() {
+  const { prefs } = usePrefs();
+  // У родственника этот раздел показывает лекарства родителя, а не его
+  // собственные: он пришёл посмотреть, что назначено отцу.
+  return prefs.role === 'relative' ? <RelativeView /> : <OwnMedicines />;
+}
+
+/** Лекарства родителя — только чтение. */
+function RelativeView() {
+  const { t } = useT();
+  const family = useFamily();
+
+  return (
+    <Screen>
+      {family.selected ? (
+        <ParentMedicines view={family.selected} />
+      ) : (
+        <Card>
+          <Txt variant="subtitle" weight="display">
+            {t('noParentSelected')}
+          </Txt>
+          <Txt variant="body" color={color.inkSoft} style={{ marginTop: space(2) }}>
+            {t('familyEmptyHint')}
+          </Txt>
+        </Card>
+      )}
+    </Screen>
+  );
+}
+
+function OwnMedicines() {
   const { t } = useT();
   const { items, loading, remove } = useMedications();
 

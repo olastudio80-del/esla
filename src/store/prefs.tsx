@@ -44,6 +44,11 @@ export type Prefs = {
    * укачивает, и для старых телефонов, где оно подтормаживает.
    */
   motion: MotionLevel;
+  /**
+   * Какого из родителей смотрит родственник. Общий для всех его экранов:
+   * иначе «Holat» показывал бы отца, а «Dorilar» — мать.
+   */
+  selectedPatientId: string | null;
   onboarded: boolean;
 };
 
@@ -67,6 +72,7 @@ const fallback: Prefs = {
   voiceEnabled: true,
   boldText: false,
   motion: 'full',
+  selectedPatientId: null,
   onboarded: false,
 };
 

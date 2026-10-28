@@ -8,6 +8,8 @@ import { Icon } from '@/components/ui/Icon';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { Txt } from '@/components/ui/Txt';
+import { cloudConfigured } from '@/features/cloud/client';
+import { refreshInviteCode } from '@/features/cloud/sync';
 import { getPermissionGranted, rescheduleAll, requestPermission } from '@/features/notifications';
 import { useHealth } from '@/hooks/useHealth';
 import { useT } from '@/i18n';
@@ -24,6 +26,18 @@ export default function SettingsScreen() {
   const { prefs, set } = usePrefs();
   const bracelet = useHealth();
   const [notifications, setNotifications] = useState<boolean | null>(null);
+  const [invite, setInvite] = useState<{ code: string; expiresAt: string } | null>(null);
+  /**
+   * Год рождения хранится отдельной строкой, пока его печатают.
+   *
+   * Если показывать значение прямо из настроек, поле очищается на первой
+   * же цифре: год там появляется только когда введены все четыре, а до
+   * этого в настройках null — и дописать вторую цифру уже некуда.
+   */
+  const [birthYearText, setBirthYearText] = useState(
+    prefs.birthYear ? String(prefs.birthYear) : '',
+  );
+  const [inviteBusy, setInviteBusy] = useState(false);
 
   useEffect(() => {
     getPermissionGranted()
@@ -66,6 +80,55 @@ export default function SettingsScreen() {
           ))}
         </View>
       </View>
+
+      <View style={{ gap: space(2) }}>
+        <Caption>{t('familyRoleQuestion')}</Caption>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space(2) }}>
+          <Pill
+            label={t('roleIAmPatient')}
+            selected={prefs.role === 'patient'}
+            onPress={() => set('role', 'patient')}
+            tint={color.blushSoft}
+          />
+          <Pill
+            label={t('roleIAmRelative')}
+            selected={prefs.role === 'relative'}
+            onPress={() => set('role', 'relative')}
+            tint={color.blushSoft}
+          />
+        </View>
+      </View>
+
+      {/* Код приглашения нужен только тому, за кем следят. */}
+      {prefs.role === 'patient' && cloudConfigured ? (
+        <View style={{ gap: space(2) }}>
+          <Caption>{t('inviteSection')}</Caption>
+          <Card tint={color.blushSoft}>
+            <Txt variant="body">{t('shareCodeHint')}</Txt>
+            {invite ? (
+              <Txt
+                variant="display"
+                weight="displayExtra"
+                align="center"
+                style={{ marginTop: space(4), letterSpacing: 6 }}
+              >
+                {invite.code}
+              </Txt>
+            ) : null}
+            <Gap size={4} />
+            <Button
+              label={invite ? t('newCode') : t('inviteCode')}
+              icon="share"
+              busy={inviteBusy}
+              onPress={async () => {
+                setInviteBusy(true);
+                setInvite(await refreshInviteCode());
+                setInviteBusy(false);
+              }}
+            />
+          </Card>
+        </View>
+      ) : null}
 
       <View style={{ gap: space(2) }}>
         <Caption>{t('textSize')}</Caption>
@@ -111,16 +174,19 @@ export default function SettingsScreen() {
         />
         <Input
           label={t('birthYear')}
-          value={prefs.birthYear ? String(prefs.birthYear) : ''}
+          value={birthYearText}
           onChangeText={(value) => {
             const digits = value.replace(/\D/g, '').slice(0, 4);
+            setBirthYearText(digits);
+            // В настройки год попадает только когда он правдоподобен:
+            // иначе возраст в медкарте для врача был бы ерундой.
             const year = Number(digits);
-            // Правдоподобный год рождения: иначе возраст в медкарте был бы ерундой.
             const current = new Date().getFullYear();
             set('birthYear', digits.length === 4 && year > 1900 && year <= current ? year : null);
           }}
           placeholder="1952"
           keyboardType="number-pad"
+          maxLength={4}
         />
       </View>
 

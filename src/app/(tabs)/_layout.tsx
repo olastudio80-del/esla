@@ -3,30 +3,48 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { useT, useType } from '@/i18n';
-import { color, font } from '@/theme/tokens';
 import type { TKey } from '@/i18n';
+import { usePrefs } from '@/store/prefs';
+import { color, font } from '@/theme/tokens';
+
+type TabConfig = { name: string; icon: IconName; label: TKey };
 
 /**
- * Пять разделов из презентации. Подписи обязательны: иконка без слова
- * пожилому человеку мало что говорит, а угадывать он не станет.
+ * Разделы различаются по роли — так в макете проекта.
+ *
+ * У того, кто принимает лекарства, главный экран — его сегодняшние дозы.
+ * У того, кто следит за родителями, главный экран — их состояние: ему
+ * незачем открывать приложение ради собственных таблеток, он пришёл
+ * посмотреть, принял ли отец своё лекарство.
  */
-const TABS: { name: string; icon: IconName; label: TKey }[] = [
+const PATIENT_TABS: TabConfig[] = [
   { name: 'index', icon: 'home', label: 'tabHome' },
   { name: 'medicines', icon: 'pill', label: 'tabMedicines' },
-  { name: 'assistant', icon: 'chat', label: 'tabAssistant' },
+  { name: 'assistant', icon: 'spark', label: 'tabAssistant' },
   { name: 'history', icon: 'file', label: 'tabHistory' },
-  { name: 'family', icon: 'users', label: 'tabFamily' },
 ];
+
+const RELATIVE_TABS: TabConfig[] = [
+  { name: 'family', icon: 'heart', label: 'tabStatus' },
+  { name: 'medicines', icon: 'pill', label: 'tabMedicines' },
+  { name: 'assistant', icon: 'spark', label: 'tabAssistant' },
+  { name: 'history', icon: 'file', label: 'tabCard' },
+];
+
+/** Все существующие вкладки — скрытые объявляются с href: null. */
+const ALL = ['index', 'medicines', 'assistant', 'history', 'family'];
 
 export default function TabsLayout() {
   const { t } = useT();
+  const { prefs } = usePrefs();
   const type = useType();
   // Android 15 и новее рисует приложение под системной навигацией.
-  // Без этого отступа подписи вкладок оказываются под кнопками телефона.
   const insets = useSafeAreaInsets();
-  // Подписи вкладок растут вместе с настройкой размера текста, а высота
-  // панели — вместе с ними, иначе подпись обрезается снизу.
+
+  const visible = prefs.role === 'relative' ? RELATIVE_TABS : PATIENT_TABS;
   const labelSize = Math.round(type('caption') * 0.8);
+  const byName = new Map(visible.map((tab) => [tab.name, tab]));
+
   return (
     <Tabs
       screenOptions={{
@@ -44,17 +62,26 @@ export default function TabsLayout() {
         tabBarLabelStyle: { fontFamily: font.bodySemi, fontSize: labelSize },
       }}
     >
-      {TABS.map((tab) => (
+      {/* Порядок объявления задаёт порядок вкладок, поэтому сначала видимые. */}
+      {visible.map((tab) => (
         <Tabs.Screen
           key={tab.name}
           name={tab.name}
           options={{
             title: t(tab.label),
             tabBarIcon: ({ color: tint }) => (
-              <Icon name={tab.icon} size={26} color={typeof tint === 'string' ? tint : color.inkSoft} />
+              <Icon
+                name={tab.icon}
+                size={26}
+                color={typeof tint === 'string' ? tint : color.inkSoft}
+              />
             ),
           }}
         />
+      ))}
+
+      {ALL.filter((name) => !byName.has(name)).map((name) => (
+        <Tabs.Screen key={name} name={name} options={{ href: null }} />
       ))}
     </Tabs>
   );

@@ -18,7 +18,16 @@ export const ru: Dict = {
   loading: 'Загрузка…',
   notSet: 'Не указано',
 
+  welcomeTitle: 'Добро пожаловать в esla',
+  welcomeHint: 'Для кого приложение? Это можно изменить потом в настройках.',
+  welcomeName: 'Как вас зовут',
+  welcomeNameHint: 'Так будем обращаться в приветствии.',
+  welcomeStart: 'Начать',
+  inviteSection: 'Добавить детей',
+
   // Разделы
+  tabStatus: 'Состояние',
+  tabCard: 'Карта',
   tabHome: 'Главный',
   tabMedicines: 'Лекарства',
   tabAssistant: 'Помощник',
@@ -152,6 +161,9 @@ export const ru: Dict = {
   voiceModeOff: 'Голосовой разговор пока не подключён',
   voiceModeOffHint: 'Для голосового разговора нужен интернет и настроенное подключение. Запись самочувствия по вопросам работает и без этого.',
 
+  micDenied: 'Нет доступа к микрофону',
+  micDeniedHint: 'Разрешите приложению esla доступ к микрофону в настройках телефона. На вопросы можно отвечать и кнопками — всё так же запишется.',
+  openPhoneSettings: 'Открыть настройки телефона',
   voiceTap: 'Нажмите, чтобы говорить',
   voiceSpeaking: 'Говорю…',
   voiceNotUnderstood: 'Не понял — нажмите кнопку или скажите ещё раз',
@@ -189,6 +201,12 @@ export const ru: Dict = {
   allergies: 'Аллергия',
   addAllergy: 'Добавить аллергию',
   noAllergies: 'Аллергия не отмечена',
+  medicalCardTitle: 'Медицинская карта',
+  forDoctors: 'Для врачей',
+  shareAsPdf: 'Отправить как PDF',
+  showCard: 'Показать медкарту',
+  cardEmpty: 'В карте пока нет данных',
+  cardEmptyHint: 'Внесите лекарства, диагнозы и аллергию — они соберутся здесь.',
   emergencyTitle: 'Экстренный случай',
   emergencyNote: 'Медкарта для врачей готовится одним нажатием',
   prepareCard: 'Подготовить медкарту',
@@ -255,6 +273,12 @@ export const ru: Dict = {
 
   lastSeen: 'Последняя связь: {ago}',
   neverSeen: 'Ещё не выходил на связь',
+
+  parentMedicines: 'Лекарства: {name}',
+  parentCard: 'Карта: {name}',
+  documentsStayOnPhone: 'Анализы и заключения врача остаются на телефоне родителя и сюда не передаются.',
+  noParentSelected: 'Сначала добавьте родителя',
+  recentWellbeing: 'Последние записи о самочувствии',
 
   // Браслет и Health Connect
   braceletTitle: 'Фитнес-браслет',

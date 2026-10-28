@@ -1,8 +1,8 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { Button, Gap, Pill } from '@/components/ui/Button';
 import { Caption, Card, SectionTitle } from '@/components/ui/Card';
@@ -21,13 +21,94 @@ import {
 } from '@/db/documents';
 import type { ConditionKind, ConditionRow, DocKind, DocumentRow } from '@/db/types';
 import { symptomById } from '@/data/symptoms';
-import { shareMedicalCard } from '@/features/medicalCard';
+import { ParentMedicines } from '@/components/ParentMedicines';
+import { useFamily } from '@/hooks/useFamily';
 import { useT } from '@/i18n';
 import { dateKey, timeOf } from '@/lib/date';
 import { usePrefs } from '@/store/prefs';
 import { color, radius, semantic, space } from '@/theme/tokens';
 
 export default function HistoryScreen() {
+  const { prefs } = usePrefs();
+  // У родственника это карта родителя, а не его собственная история.
+  return prefs.role === 'relative' ? <ParentCard /> : <OwnHistory />;
+}
+
+/**
+ * Карта родителя глазами ребёнка.
+ *
+ * Здесь только то, что родитель действительно передаёт: лекарства и
+ * тревожные записи о самочувствии. Анализы и заключения врача остаются
+ * на его телефоне, и экран говорит об этом прямо — иначе отсутствие
+ * документов прочиталось бы как «их нет».
+ */
+function ParentCard() {
+  const { t, lang } = useT();
+  const family = useFamily();
+  const view = family.selected;
+
+  if (!view) {
+    return (
+      <Screen>
+        <Card>
+          <Txt variant="subtitle" weight="display">
+            {t('noParentSelected')}
+          </Txt>
+          <Txt variant="body" color={color.inkSoft} style={{ marginTop: space(2) }}>
+            {t('familyEmptyHint')}
+          </Txt>
+        </Card>
+      </Screen>
+    );
+  }
+
+  const name = view.patient.name ?? t('roleRelative');
+
+  return (
+    <Screen>
+      <SectionTitle title={t('parentCard', { name })} />
+
+      {view.alarms.length > 0 ? (
+        <View style={{ gap: space(2) }}>
+          <Caption>{t('recentWellbeing')}</Caption>
+          {view.alarms.map((alarm) => (
+            <Card key={alarm.id} tint={semantic.danger}>
+              <Txt weight="semibold" color={color.card}>
+                {alarm.createdAt.slice(0, 10)}
+              </Txt>
+              <Txt variant="body" color={color.card} style={{ marginTop: space(2) }}>
+                {alarm.symptoms
+                  .map((id) => {
+                    const symptom = symptomById(id);
+                    return symptom ? (lang === 'ru' ? symptom.ru : symptom.uz) : id;
+                  })
+                  .join(', ')}
+              </Txt>
+              {alarm.note ? (
+                <Txt variant="caption" color={color.card} style={{ marginTop: space(2) }}>
+                  {alarm.note}
+                </Txt>
+              ) : null}
+            </Card>
+          ))}
+        </View>
+      ) : null}
+
+      <ParentMedicines view={view} />
+
+      <Card tint={color.app}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space(3) }}>
+          <Icon name="shield" size={22} color={color.inkSoft} />
+          <Txt variant="caption" color={color.inkSoft} style={{ flex: 1 }}>
+            {t('documentsStayOnPhone')}
+          </Txt>
+        </View>
+      </Card>
+    </Screen>
+  );
+}
+
+function OwnHistory() {
   const { t, lang } = useT();
   const { prefs } = usePrefs();
 
@@ -36,7 +117,6 @@ export default function HistoryScreen() {
   const [allergies, setAllergies] = useState<ConditionRow[]>([]);
   const [checkins, setCheckins] = useState<Checkin[]>([]);
   const [draft, setDraft] = useState<{ kind: ConditionKind; value: string } | null>(null);
-  const [preparing, setPreparing] = useState(false);
 
   const reload = useCallback(async () => {
     const [docs, diag, allerg, checks] = await Promise.all([
@@ -246,10 +326,9 @@ export default function HistoryScreen() {
         </Txt>
         <Gap size={4} />
         <Button
-          label={t('prepareCard')}
-          icon="share"
-          onPress={() => void prepareCard()}
-          busy={preparing}
+          label={t('showCard')}
+          icon="stethoscope"
+          onPress={() => router.push('/medical-card')}
           large
         />
       </Card>
@@ -322,21 +401,6 @@ export default function HistoryScreen() {
     await reload();
   }
 
-  async function prepareCard() {
-    setPreparing(true);
-    try {
-      await shareMedicalCard({
-        lang,
-        patientName: prefs.patientName,
-        birthYear: prefs.birthYear,
-      });
-    } catch (error) {
-      console.warn('[esla] не удалось подготовить медкарту', error);
-      Alert.alert(t('retry'));
-    } finally {
-      setPreparing(false);
-    }
-  }
 }
 
 /** Блок диагнозов или аллергий: чипы со возможностью удалить. */

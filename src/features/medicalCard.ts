@@ -28,6 +28,54 @@ function esc(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
+export type MedicalCardData = {
+  patientName: string;
+  age: number | null;
+  allergies: string[];
+  diagnoses: string[];
+  medications: {
+    name: string;
+    dosage: string | null;
+    times: string[];
+    meal: string;
+  }[];
+  checkins: Awaited<ReturnType<typeof checkinsForMedicalCard>>;
+  alarms: Awaited<ReturnType<typeof checkinsForMedicalCard>>;
+};
+
+/**
+ * Собирает медкарту из того, что человек внёс сам.
+ *
+ * Одни и те же данные идут и на экран, и в PDF: иначе врач на экране и
+ * врач в распечатке видели бы разное.
+ */
+export async function collectMedicalCard(
+  patientName: string,
+  birthYear: number | null,
+): Promise<MedicalCardData> {
+  const [meds, diagnoses, allergies, checkins] = await Promise.all([
+    listMedications(),
+    listConditions('diagnosis'),
+    listConditions('allergy'),
+    checkinsForMedicalCard(30),
+  ]);
+
+  return {
+    patientName,
+    age: birthYear ? new Date().getFullYear() - birthYear : null,
+    allergies: allergies.map((a) => a.label),
+    diagnoses: diagnoses.map((d) => d.label),
+    medications: meds.map((med) => ({
+      name: med.name,
+      dosage: med.dosage,
+      times: med.times.map((x) => hhmm(x.hour, x.minute)),
+      meal: med.meal,
+    })),
+    checkins,
+    alarms: checkins.filter((c) => c.alarm),
+  };
+}
+
 export type MedicalCardInput = {
   lang: Lang;
   patientName: string;

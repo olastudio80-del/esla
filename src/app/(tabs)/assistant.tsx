@@ -137,6 +137,28 @@ export default function AssistantScreen() {
         />
       ) : null}
 
+      {/* Отказ в доступе к микрофону объясняем: иначе молчание голоса
+          читается как сломанное приложение. */}
+      {voice.permission === 'denied' ? (
+        <Card tint={color.peachSoft}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(3) }}>
+            <Icon name="mic" size={22} color={color.roseText} />
+            <Txt weight="semibold" style={{ flex: 1 }}>
+              {t('micDenied')}
+            </Txt>
+          </View>
+          <Txt variant="caption" color={color.inkSoft} style={{ marginTop: space(2) }}>
+            {t('micDeniedHint')}
+          </Txt>
+          <Gap size={3} />
+          <Button
+            label={t('openPhoneSettings')}
+            variant="soft"
+            onPress={() => void Linking.openSettings()}
+          />
+        </Card>
+      ) : null}
+
       {heard && step !== 'done' ? (
         <Txt variant="caption" color={color.inkSoft}>
           {t('voiceHeard', { text: heard })}
