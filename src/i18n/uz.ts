@@ -25,7 +25,7 @@ export const uz = {
   tabFamily: 'Ota-onam',
 
   // Главный экран
-  greeting: 'Assalomu alaykum,',
+  greeting: 'Assalomu alaykum',
   doseNowCaption: 'Hozir dori vaqti',
   doseTaken: 'Ichdim',
   doseSnooze: '10 daqiqadan keyin eslat',

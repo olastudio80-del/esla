@@ -26,7 +26,7 @@ export const ru: Dict = {
   tabFamily: 'Родители',
 
   // Главный экран
-  greeting: 'Здравствуйте,',
+  greeting: 'Здравствуйте',
   doseNowCaption: 'Сейчас время лекарства',
   doseTaken: 'Принял',
   doseSnooze: 'Напомнить через 10 минут',

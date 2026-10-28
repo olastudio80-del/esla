@@ -28,8 +28,9 @@ export default function HomeScreen() {
       <TopRow />
 
       <View style={{ gap: space(1) }}>
+        {/* Запятая только когда за приветствием следует имя. */}
         <Txt variant="bodyLarge" color={color.inkSoft}>
-          {t('greeting')}
+          {prefs.patientName ? `${t('greeting')},` : t('greeting')}
         </Txt>
         {prefs.patientName ? (
           <Txt variant="headline" weight="displayExtra">

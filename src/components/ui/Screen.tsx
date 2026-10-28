@@ -32,7 +32,9 @@ export function Screen({
           style={{ flex: 1 }}
           contentContainerStyle={{
             ...padding,
-            paddingBottom: space(8) + (footer ? 0 : insets.bottom),
+            // Запас снизу под панель вкладок: она перекрывает конец
+            // прокрутки, а последним там обычно стоит действие.
+            paddingBottom: space(24) + (footer ? 0 : insets.bottom),
             gap: space(4),
           }}
           keyboardShouldPersistTaps="handled"
